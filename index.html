@@ -37,6 +37,10 @@ button.s{background:#fff;color:var(--navy);border:1px solid var(--navy)}button.d
 #sheetwrap{display:none}.pv #app{display:none}.pv #sheetwrap{display:block}
 #tb{position:sticky;top:0;background:#fff;padding:8px;display:flex;gap:6px;flex-wrap:wrap;z-index:9;border-bottom:1px solid var(--line)}#tb button{flex:1;padding:8px;font-size:13px;min-height:38px}
 #sheet{transform-origin:top left}
+[hidden]{display:none!important}
+.sw{position:relative;overflow:hidden;border-radius:10px;margin-bottom:8px}.sw .row{margin:0}
+.swbg{position:absolute;left:0;top:0;bottom:0;width:90px;background:#c53030;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px}
+.swfg{position:relative;touch-action:pan-y;transition:transform .2s;user-select:none;-webkit-user-select:none}
 /* ---- Πρότυπο προσφοράς (από το υπάρχον HTML) ---- */
 @page{size:A4 portrait;margin:8mm}
 .container{width:210mm;margin:0 auto;background:#fff;padding:8mm;font-family:Arial,sans-serif;color:#000;box-shadow:0 2px 10px #0001}
@@ -84,8 +88,8 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const lines=t=>String(t||'').split('\n').map(s=>s.trim()).filter(Boolean);
 const rnd=Math.round;
 /* ---------- IndexedDB ---------- */
-const STORES=['clients','projects','quotes','materials','moves','kv'];
-let _db;const db=()=>_db||(_db=new Promise((ok,no)=>{const r=indexedDB.open('epc-app',1);r.onupgradeneeded=()=>STORES.forEach(s=>r.result.createObjectStore(s,{keyPath:'id'}));r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
+const STORES=['clients','projects','quotes','materials','moves','kv','orders'];
+let _db;const db=()=>_db||(_db=new Promise((ok,no)=>{const r=indexedDB.open('epc-app',2);r.onupgradeneeded=()=>STORES.forEach(s=>{if(!r.result.objectStoreNames.contains(s))r.result.createObjectStore(s,{keyPath:'id'})});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
 const run=async(s,m,...a)=>{const d=await db();return new Promise((ok,no)=>{const r=d.transaction(s,'readwrite').objectStore(s)[m](...a);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})};
 const put=(s,o)=>run(s,'put',o),del=(s,i)=>run(s,'delete',i),all=s=>run(s,'getAll'),get=(s,i)=>run(s,'get',i);
 /* ---------- Ρυθμίσεις ---------- */
@@ -105,11 +109,11 @@ function calc(q){
 /* ---------- Βοηθητικά UI ---------- */
 const ST_P={new:'Νέο',pending:'Προσφορά σε εκκρεμότητα',approved:'Εγκεκριμένο',inprogress:'Σε εξέλιξη',done:'Ολοκληρωμένο',cancelled:'Ακυρωμένο'};
 const ST_Q={draft:'Πρόχειρη',pending:'Εκκρεμεί',approved:'Εγκρίθηκε',rejected:'Απορρίφθηκε'};
-const UNITS=['τεμ','μ','μ καλωδίου','ρολό','κουτί','κιλό','λίτρο'];
+const UNITS=['τεμ','μ','μ καλωδίου','ρολό','κουτί','κουλούρα','κιλό','λίτρο'];
 const opts=o=>Object.entries(o);
-const row=(click,t,sub,right,s,cls='')=>`<div class="row ${cls}" data-s="${esc((s||'').toLowerCase())}" onclick="${click}"><div><b>${esc(t)}</b><small>${esc(sub)}</small></div><span>${right||''}</span></div>`;
-const flt=v=>$$('#list .row').forEach(r=>r.hidden=!r.dataset.s.includes(v.toLowerCase()));
-const search=()=>`<input placeholder="🔍 Αναζήτηση" oninput="flt(this.value)" style="margin-bottom:10px">`;
+const row=(click,t,sub,right,s,cls='')=>`<div class="row ${cls}" data-s="${esc(fold(s||''))}" onclick="${click}"><div><b>${esc(t)}</b><small>${esc(sub)}</small></div><span>${right||''}</span></div>`;
+const flt=v=>$$('#list>*').forEach(r=>r.hidden=!(r.dataset.s||'').includes(fold(v.trim())));
+const search=()=>`<input type="search" placeholder="🔍 Αναζήτηση" oninput="flt(this.value)" style="margin-bottom:10px">`;
 const F=(fs,o={})=>fs.map(([k,l,t,op])=>`<label>${l}</label>`+(t=='area'?`<textarea name="${k}" rows="3">${esc(o[k])}</textarea>`:t=='sel'?`<select name="${k}">${op.map(([v,n])=>`<option value="${esc(v)}"${o[k]==v?' selected':''}>${esc(n)}</option>`).join('')}</select>`:`<input name="${k}" ${t=='n'?'inputmode="decimal"':''} value="${esc(o[k])}">`)).join('');
 const C=()=>Object.fromEntries($$('#f [name]').map(e=>[e.name,e.value.trim()]));
 const by=k=>(a,b)=>String(a[k]).localeCompare(String(b[k]),'el');
@@ -124,7 +128,7 @@ const NAV=[['home','🏠','Αρχική'],['clients','👤','Πελάτες'],['
 const go=(v,p)=>{V=v;P=p;scrollTo(0,0);render()};
 async function render(){
  document.body.classList.remove('pv');
- const tab=({buy:'stock',imp:'stock',dict:'quotes',dictR:'quotes'})[V]||V;
+ const tab=({buy:'stock',imp:'stock',low:'stock',orders:'stock',orderC:'stock',dict:'quotes',dictR:'quotes',report:'home'})[V]||V;
  $('#nav').innerHTML=NAV.map(([k,i,l])=>`<button class="${tab.slice(0,4)==k.slice(0,4)?'on':''}" onclick="go('${k}')"><b>${i}</b>${l}</button>`).join('');
  $('#m').innerHTML=await VIEWS[V](P)}
 const VIEWS={
@@ -136,8 +140,8 @@ async home(){
  const prof=qs.filter(q=>q.status=='approved').reduce((t,q)=>t+calc(q).profit,0);
  const old=!SET.lastBackup||Date.now()-SET.lastBackup>7*864e5;
  return `<h2>Αρχική</h2>${old?`<div class="warn">⚠️ Δεν υπάρχει πρόσφατο αντίγραφο ασφαλείας. Αν χαθεί το κινητό ή σβηστούν τα δεδομένα του browser, χάνονται όλα. <a href="#" onclick="go('settings');return false">Δημιούργησε αντίγραφο</a></div>`:''}
- <div class="grid"><div class="card"><b>${act}</b>Ενεργά έργα</div><div class="card"><b>${pend}</b>Προσφορές σε εκκρεμότητα</div><div class="card" onclick="go('stock')"><b>${low.length}</b>Χαμηλά αποθέματα</div><div class="card"><b>${eur(prof)}</b>Εκτιμώμενο κέρδος εγκεκριμένων</div></div>
- <div class="btns"><button onclick="D=null;go('dict')" style="flex-basis:100%">🎤 Νέα προσφορά με υπαγόρευση</button><button class="s" onclick="newQ()">+ Χειροκίνητη προσφορά</button><button class="s" onclick="go('clientC','')">+ Νέος πελάτης</button></div>`},
+ <div class="grid"><div class="card"><b>${act}</b>Ενεργά έργα</div><div class="card"><b>${pend}</b>Προσφορές σε εκκρεμότητα</div><div class="card" onclick="go('low')"><b>${low.length}</b>Χαμηλά αποθέματα</div><div class="card"><b>${eur(prof)}</b>Εκτιμώμενο κέρδος εγκεκριμένων</div></div>
+ <div class="btns"><button onclick="D=null;go('dict')" style="flex-basis:100%">📋 Νέα προσφορά από κείμενο / υπαγόρευση</button><button class="s" onclick="newQ()">+ Χειροκίνητη προσφορά</button><button class="s" onclick="go('report')">📊 Μηνιαία αναφορά</button><button class="s" onclick="go('clientC','')">+ Νέος πελάτης</button></div>`},
 async clients(){const l=(await all('clients')).sort(by('name'));
  return `<h2>Πελάτες</h2>${search()}<div id="list">${l.map(c=>row(`go('clientC','${c.id}')`,c.name,c.phone||c.address||'','',c.name+(c.phone||'')+(c.address||''))).join('')||'<p>Δεν υπάρχουν πελάτες ακόμα. Πάτα «Νέος πελάτης».</p>'}</div><button class="fab" onclick="go('clientC','')">+ Νέος πελάτης</button>`},
 async clientC(id){const c=(id&&await get('clients',id))||{};
@@ -153,13 +157,13 @@ async projectC(id){const p=(id&&await get('projects',id))||{status:'new'};const 
  <div class="btns"><button onclick="save('projects','${id}','projects','title')">Αποθήκευση</button><button class="s" onclick="go('projects')">Πίσω</button>${id?`<button class="d" onclick="remove('projects','${id}','projects')">Διαγραφή</button>`:''}</div>
  ${id?`<h3>Προσφορές έργου</h3>${qs.map(q=>row(`go('quoteV','${q.id}')`,'№ '+q.no,dt(q.date)+' · '+ST_Q[q.status],eur(calc(q).net))).join('')||'<small>Καμία</small>'}${p.clientId?`<div class="btns"><button onclick="newQ('${p.clientId}','${id}')">+ Νέα προσφορά</button></div>`:''}${costBox(qs)}`:''}`},
 async quotes(){const l=(await all('quotes')).sort((a,b)=>b.no-a.no);
- return `<h2>Προσφορές</h2>${search()}<div id="list">${l.map(q=>row(`go('quoteV','${q.id}')`,'№ '+q.no+' – '+q.title,(q.cl?.name||'—')+' · '+dt(q.date)+' · '+ST_Q[q.status]+(q.version>1?' · έκδ.'+q.version:''),eur(calc(q).net),q.no+q.title+(q.cl?.name||''))).join('')||'<p>Καμία προσφορά ακόμα.</p>'}</div><button class="fab" onclick="newQ()">+ Νέα προσφορά</button>`},
+ return `<h2>Προσφορές</h2>${search()}<div id="list">${l.map(qrow).join('')||'<p>Καμία προσφορά ακόμα.</p>'}</div><button class="fab" onclick="newQ()">+ Νέα προσφορά</button>`},
 async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m]));return edHTML()},
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
- $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">${q.mode=='full'?'Δείξε συνοπτική':'Δείξε αναλυτική'}</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1;padding:6px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button>`;return ''},
+ $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
 async stock(){const l=(await all('materials')).sort(by('d'));
- return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button><button class="s" onclick="go('imp')">📥 Εισαγωγή τιμών</button></div>${search()}<div id="list">${l.map(m=>{const lo=num(m.min)>0&&num(m.qty)<=num(m.min);return row(`go('stockC','${m.id}')`,m.d,[m.code,m.cat,m.supplier,eur(rnd(num(m.price)*100))+'/'+m.unit].filter(Boolean).join(' · '),num(m.qty)+' '+esc(m.unit),[m.code,m.d,m.cat,m.supplier].join(' '),lo?'low':'')}).join('')||'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}</div><button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
+ return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button><button class="s" onclick="go('imp')">📥 Εισαγωγή τιμών</button><button class="s" onclick="go('low')">⚠️ Χαμηλά αποθέματα</button><button class="s" onclick="go('orders')">📋 Παραγγελίες</button></div>${search()}<div id="list">${l.map(m=>{const lo=num(m.min)>0&&num(m.qty)<=num(m.min);return row(`go('stockC','${m.id}')`,m.d,[m.code,m.cat,m.supplier,eur(rnd(num(m.price)*100))+'/'+m.unit].filter(Boolean).join(' · '),num(m.qty)+' '+esc(m.unit),[m.code,m.d,m.cat,m.supplier].join(' '),lo?'low':'')}).join('')||'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}</div><button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
 async stockC(id){const m=(id&&await get('materials',id))||{unit:'τεμ',qty:'0'};const mv=(await all('moves')).filter(x=>x.mid==id).sort((a,b)=>b.date-a.date).slice(0,15);
  return `<h2>${m.d?esc(m.d):'Νέο υλικό'}</h2><div id="f">${F([['code','Κωδικός'],['d','Περιγραφή *'],['cat','Κατηγορία'],['unit','Μονάδα','sel',UNITS.map(u=>[u,u])],['qty','Διαθέσιμη ποσότητα','n'],['min','Ελάχιστο απόθεμα','n'],['price','Τιμή αγοράς χωρίς ΦΠΑ (€)','n'],['supplier','Προμηθευτής'],['src','Σύνδεσμος πηγής τιμής (προαιρετικό)']],m)}</div>${m.priceDate?`<small>Τιμή ενημερώθηκε: ${dt(m.priceDate)}</small>`:''}
  <div class="btns"><button onclick="saveMat('${id}')">Αποθήκευση</button><button class="s" onclick="go('stock')">Πίσω</button>${id?`<button class="d" onclick="remove('materials','${id}','stock','Διαγραφή υλικού; Οι παλιές προσφορές και το ιστορικό κινήσεων διατηρούνται.')">Διαγραφή</button>`:''}</div>
@@ -198,7 +202,7 @@ async function importDB(f){if(!f)return;let d;try{d=JSON.parse(await f.text());i
 /* ---------- Επεξεργαστής προσφοράς ---------- */
 const BLANK={mats:{d:'',q:'1',u:'τεμ',cost:'0',mid:null},labor:{d:'',q:'1',cost:'0',rate:'0'},extra:{d:'',amt:'0'},sections:{t:'',items:''}};
 async function newQ(clientId='',projectId=''){const p=projectId&&await get('projects',projectId)||{};
- Q={id:uid(),no:null,date:Date.now(),validDays:SET.validDays,status:'draft',version:1,mode:'full',vat:SET.vat,vatShow:false,clientId:clientId||p.clientId||'',projectId,title:p.title||'',area:p.area||'',objective:p.desc||'',sections:[{t:'',items:''}],clar:SET.clar,mats:[],labor:[],extra:[],deducted:false};go('quoteEd')}
+ Q={id:uid(),no:null,date:Date.now(),validDays:SET.validDays,status:'draft',version:1,mode:'tpl',vat:SET.vat,vatShow:false,clientId:clientId||p.clientId||'',projectId,title:p.title||'',area:p.area||'',objective:p.desc||'',sections:[{t:'',items:''}],clar:SET.clar,mats:[],labor:[],extra:[],deducted:false};go('quoteEd')}
 async function editQ(id){Q=structuredClone(await get('quotes',id));go('quoteEd')}
 const gp=(p)=>p.split('.').reduce((o,k)=>o?.[k],Q);
 function sp(el){const k=el.dataset.p.split('.'),l=k.pop();k.reduce((o,x)=>o[x],Q)[l]=el.type=='checkbox'?el.checked:el.value;$('#tot').innerHTML=totHTML()}
@@ -218,7 +222,7 @@ function edHTML(){return `<h2>${Q.no?'Προσφορά № '+Q.no:'Νέα προ
  <h3>Εργασία</h3><small>Ωρομίσθιο: ώρες × τιμή ώρας. Ημερομίσθιο: ημέρες × τιμή ημέρας. Κατ' αποκοπή: ποσότητα 1. Μπορείς να συνδυάσεις γραμμές.</small>${Q.labor.map((x,i)=>`<div class="mr" style="margin-top:6px">${inp('labor.'+i+'.d','Περιγραφή (π.χ. Ηλεκτρολόγος – ώρες)')}<div class="g"><div><small>Ώρες/Ημέρες</small>${inp('labor.'+i+'.q','')}</div><div><small>Κόστος/μον. €</small>${inp('labor.'+i+'.cost','')}</div><div><small>Χρέωση/μον. €</small>${inp('labor.'+i+'.rate','')}</div></div><button class="d sm" onclick="rm('labor',${i})">Αφαίρεση</button></div>`).join('')}<button class="s" onclick="add('labor')" style="margin-top:6px">+ Γραμμή εργασίας</button>
  <h3>Πρόσθετα έξοδα</h3><small>Χρεώνονται όσο κοστίζουν, χωρίς κέρδος (δεν μετράνε διπλά).</small>${Q.extra.map((x,i)=>`<div class="mr" style="margin-top:6px">${inp('extra.'+i+'.d','Περιγραφή (μεταφορικά κλπ.)')}<div class="g"><div><small>Ποσό €</small>${inp('extra.'+i+'.amt','')}</div></div><button class="d sm" onclick="rm('extra',${i})">Αφαίρεση</button></div>`).join('')}<button class="s" onclick="add('extra')" style="margin-top:6px">+ Έξοδο</button>
  <h3>Σημαντικές διευκρινίσεις</h3><textarea data-p="clar" rows="6" oninput="sp(this)">${esc(Q.clar)}</textarea>
- <h3>Παρουσίαση</h3><select data-p="mode" onchange="sp(this)"><option value="full"${Q.mode=='full'?' selected':''}>Αναλυτική (υλικά, εργασίες, ποσότητες, τιμές)</option><option value="sum"${Q.mode=='sum'?' selected':''}>Συνοπτική (μόνο συνολικό ποσό)</option></select>
+ <h3>Παρουσίαση</h3><select data-p="mode" onchange="sp(this)"><option value="tpl"${Q.mode=='tpl'?' selected':''}>Όπως το πρότυπό μου (Υλικά / Εργασία / Σύνολο)</option><option value="full"${Q.mode=='full'?' selected':''}>Αναλυτική (υλικά, εργασίες, ποσότητες, τιμές)</option><option value="sum"${Q.mode=='sum'?' selected':''}>Συνοπτική (μόνο συνολικό ποσό)</option></select>
  <label style="display:flex;gap:8px;align-items:center;font-size:15px"><input type="checkbox" data-p="vatShow" ${Q.vatShow?'checked':''} onchange="sp(this)" style="width:22px">Να εμφανίζονται ΦΠΑ και τελικό ποσό στην προσφορά (αλλιώς: «δεν συμπεριλαμβάνεται ΦΠΑ»)</label>
  <div id="tot">${totHTML()}</div><div class="btns"><button onclick="saveQ()">Αποθήκευση & προεπισκόπηση</button><button class="s" onclick="go('quotes')">Άκυρο</button></div>`}
 async function saveQ(){
@@ -227,23 +231,23 @@ async function saveQ(){
  if(!Q.projectId){const p={id:uid(),clientId:Q.clientId,title:Q.title,area:Q.area,status:'pending',desc:Q.objective};await put('projects',p);Q.projectId=p.id}
  if(!Q.no){Q.no=SET.nextNo;SET.nextNo++;await saveSet()}else Q.version=(Q.version||1)+1;
  await put('quotes',Q);go('quoteV',Q.id)}
-async function setQS(id,s){const q=await get('quotes',id);q.status=s;await put('quotes',q);
+async function setQS(id,s){const q=await get('quotes',id);q.status=s;if(s=='approved')q.approvedAt=q.approvedAt||Date.now();else delete q.approvedAt;await put('quotes',q);
  const p=await get('projects',q.projectId);if(p&&['approved','rejected'].includes(s)){p.status=s=='approved'?'approved':p.status;await put('projects',p)}}
-async function toggleMode(id){const q=await get('quotes',id);q.mode=q.mode=='full'?'sum':'full';await put('quotes',q);go('quoteV',id)}
+async function toggleMode(id){const q=await get('quotes',id);q.mode=({tpl:'full',full:'sum',sum:'tpl'})[q.mode]||'tpl';await put('quotes',q);go('quoteV',id)}
 /* ---------- Πρότυπο προσφοράς ---------- */
 function sheet(q){const c=calc(q),GR='ΑΒΓΔΕΖΗΘΙΚ';
  const secs=q.sections.filter(s=>s.t||s.items).map((s,i)=>`<div class="section-title">${GR[i]||i+1}. ${esc(s.t)}</div><div class="work-description"><h3>Περιγραφή Εργασιών:</h3><ul>${lines(s.items).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`).join('');
  const cl=lines(q.clar).map(x=>{const i=x.indexOf(':');return i>0&&i<60?`<li><strong>${esc(x.slice(0,i+1))}</strong>${esc(x.slice(i+1))}</li>`:`<li>${esc(x)}</li>`}).join('');
  const T=(a,h)=>a.length?`<table><tr><th>${h}</th><th>Ποσότητα</th><th>Τιμή μον.</th><th>Σύνολο</th></tr>${a.map(x=>{const n=num(x.q)||1;return `<tr><td>${esc(x.d)}</td><td>${x.u!==undefined?esc(x.q+' '+x.u):esc(x.q)}</td><td>${eur(rnd(x.sale/n))}</td><td>${eur(x.sale)}</td></tr>`}).join('')}</table>`:'';
- const full=q.mode=='full';
- const det=full?`${T(c.m,'Υλικά')}${T(c.l,'Εργασία')}${c.e.length?`<table><tr><th>Πρόσθετα</th><th></th><th></th><th>Ποσό</th></tr>${c.e.map(x=>`<tr><td>${esc(x.d)}</td><td></td><td></td><td>${eur(x.sale)}</td></tr>`).join('')}</table>`:''}<div class="pl"><span>Σύνολο υλικών:</span><strong>${eur(c.matSale)}</strong></div><div class="pl"><span>Σύνολο εργασίας:</span><strong>${eur(c.labSale)}</strong></div>${c.extSale?`<div class="pl"><span>Πρόσθετα:</span><strong>${eur(c.extSale)}</strong></div>`:''}`:'';
+ const full=q.mode=='full',tp=q.mode=='tpl',L2=(a,t)=>a.length?t+' ('+a.map(x=>esc(x.d)).filter(Boolean).join(', ')+')':t,TPL=`<div style="margin:6px 0"><div class="pl"><span>${L2(c.m,'Υλικά')}:</span><strong>${eur(c.matSale)}</strong></div><div class="pl"><span>${L2(c.l,'Εργασία')}:</span><strong>${eur(c.labSale)}</strong></div>${c.extSale?`<div class="pl"><span>${L2(c.e,'Πρόσθετα')}:</span><strong>${eur(c.extSale)}</strong></div>`:''}</div>`;
+ const det=tp?TPL:full?`${T(c.m,'Υλικά')}${T(c.l,'Εργασία')}${c.e.length?`<table><tr><th>Πρόσθετα</th><th></th><th></th><th>Ποσό</th></tr>${c.e.map(x=>`<tr><td>${esc(x.d)}</td><td></td><td></td><td>${eur(x.sale)}</td></tr>`).join('')}</table>`:''}<div class="pl"><span>Σύνολο υλικών:</span><strong>${eur(c.matSale)}</strong></div><div class="pl"><span>Σύνολο εργασίας:</span><strong>${eur(c.labSale)}</strong></div>${c.extSale?`<div class="pl"><span>Πρόσθετα:</span><strong>${eur(c.extSale)}</strong></div>`:''}`:'';
  const tot=q.vatShow?`<div class="pl"><span>Καθαρή αξία:</span><strong>${eur(c.net)}</strong></div><div class="pl"><span>Φ.Π.Α. ${num(q.vat)}%:</span><strong>${eur(c.vat)}</strong></div><div class="pt"><span>ΤΕΛΙΚΟ ΠΟΣΟ:</span><span>${eur(c.total)}</span></div>`:`<div class="pt"><span>ΣΥΝΟΛΟ:</span><span>${eur(c.net)}</span></div><div class="note">Δεν συμπεριλαμβάνεται Φ.Π.Α.</div>`;
  return `<div class="container"><div class="header"><div class="contact-info"><div><strong>☎</strong> ${esc(SET.phone)}</div><div><strong>✉</strong> ${esc(SET.email)}</div><div><strong>🌐</strong> ${esc(SET.web)}</div></div>
  <div class="offer-details-header"><div><strong>Αριθμός Προσφοράς:</strong> ${q.no}</div><div><strong>Ημερομηνία:</strong> ${dt(q.date)}</div><div><strong>Ισχύς Προσφοράς:</strong> ${num(q.validDays)} ημέρες</div><div><strong>Περιοχή:</strong> ${esc(q.area)}</div></div>
  <div class="header-content"><h1>ΠΡΟΣΦΟΡΑ ΕΡΓΑΣΙΩΝ</h1><p>${esc(q.title)}</p></div></div>
  ${q.objective?`<div class="project-objective"><strong>Αντικείμενο Έργου:</strong>${esc(q.objective)}</div>`:''}${secs}
  ${cl?`<div class="clarifications"><h3>Σημαντικές Διευκρινίσεις:</h3><ul>${cl}</ul></div>`:''}<hr class="separator">
- <div class="section-title">Οικονομική Ανάλυση</div><div class="price-box"><h3>${full?'Ανάλυση Κόστους:':'Συνολική Τιμή:'}</h3>${det}${tot}</div>
+ <div class="section-title">Οικονομική Ανάλυση</div><div class="price-box"><h3>${full||tp?'Ανάλυση Κόστους:':'Συνολική Τιμή:'}</h3>${det}${tot}</div>
  ${q.vatShow?'':'<div class="vat-notice">⚠️ ΣΤΟ ΠΟΣΟ ΔΕΝ ΣΥΜΠΕΡΙΛΑΜΒΑΝΕΤΑΙ Ο Φ.Π.Α.</div>'}
  <div class="footer"><p><strong>Ευχαριστούμε για την εμπιστοσύνη σας!</strong></p><p>Για οποιαδήποτε διευκρίνιση παρακαλούμε επικοινωνήστε μαζί μας.</p></div></div>`}
 function fit(){$('#sheet').style.zoom=Math.min(1,(innerWidth-8)/794)}
@@ -264,7 +268,7 @@ function parseItems(text){
  const nu=()=>({words:[],q:null,len:null,spec:null,specN:null,alt:false});
  text.split(/,(?!\d)|[;\n]+|\s+και\s+|\s+μετά\s+|\.\s+/i).forEach(ch=>{
   flush();cur=nu();
-  const T=ch.trim().split(/\s+/).filter(Boolean).map(r=>{let n=norm(r).replace(/[^\p{L}\p{N}.×]/gu,'');n=NW[n]??n;if(n=='επι'||n=='×')n='x';return{r,n}}).filter(t=>t.n);
+  const T=ch.trim().split(/\s+/).filter(Boolean).map(r=>{let n=norm(r).replace(/[^\p{L}\p{N}.×]/gu,'').replace(/\.+$/,'');n=NW[n]??n;if(n=='επι'||n=='×')n='x';return{r,n}}).filter(t=>t.n);
   for(let i=1;i<T.length-1;i++)if(T[i].n=='x'&&isN(T[i-1].n)&&isN(T[i+1].n)){T.splice(i-1,3,{r:'',n:T[i-1].n+'x'+T[i+1].n});i--}
   for(let i=0;i<T.length;i++){const n=T[i].n,nu_=i+1<T.length&&UN.has(T[i+1].n),g=n.match(/^(\d+(?:\.\d+)?)(m|μ)$/);
    if(n=='αλλο'){flush();cur=nu();cur.alt=true}
@@ -277,30 +281,111 @@ const stems=s=>norm(s).split(/[^\p{L}\p{N}.x]+/u).filter(w=>w.length>1).map(w=>w
 function matchMat(it,ms){let best=null,bs=0;const a=stems(it.d);if(!a.length)return null;
  for(const m of ms){if(it.cable&&it.spec&&!norm(m.d).includes(it.spec))continue;const b=stems(m.d),s=a.filter(w=>b.includes(w)).length/a.length;if(s>bs){bs=s;best=m}}
  return bs>=.6?best:null}
-let D=null,IMP=[];
+function kw(t){const n=norm(t);if(n.length!=t.length)return null;
+ const re=/(^|[\n.!?;]\s*)(?:τα\s+)?(πελατη[σ]?|τιτλο[σ]?|περιοχη|περιγραφη|αντικειμενο|ενοτητα|υλικα|εργασια|διευκρινισεισ)(?:\s+ειναι)?\s*[:\-]?[ \t]*/g;
+ const hit=[];let m;while((m=re.exec(n)))hit.push({k:m[2].slice(0,5),s:m.index+m[1].length,e:re.lastIndex});
+ if(!hit.length)return null;
+ const out=[];if(t.slice(0,hit[0].s).trim())out.push({k:'περι',v:t.slice(0,hit[0].s).trim()});
+ hit.forEach((h,i)=>out.push({k:h.k,v:t.slice(h.e,i+1<hit.length?hit[i+1].s:undefined).trim()}));return out}
+const bl=v=>v.split('\n').map(s=>s.replace(/^[-•*\s]+/,'').trim()).filter(Boolean);
+function matLines(v){const o=[];bl(v).forEach(l=>{
+ if(l.includes('|')){const[d,q,u]=l.split('|').map(s=>s.trim()),sp=d.match(/\d+x\d+(?:[.,]\d+)?/);o.push({d,q:(q||'1').replace(',','.'),u:u||'τεμ',cable:!!sp||/καλωδ/i.test(d),spec:sp?sp[0].replace(',','.'):null})}
+ else o.push(...parseItems(l))});return o}
+function parseText(t){const P={title:'',area:'',obj:'',cl:'',secs:[],items:[],clar:null,dme:null,dh:null},K=kw(t);
+ if(!K)P.items=parseItems(t);else K.forEach(({k,v})=>{const c=v.replace(/[\s.,;:]+$/,'');
+  if(k=='πελατ')P.cl=c;else if(k=='τιτλο')P.title=c;else if(k=='περιο')P.area=c;
+  else if(['περιγ','αντικ','περι'].includes(k))P.obj=P.obj?P.obj+'\n'+c:c;
+  else if(k=='ενοτη'){const L=bl(v);if(L.length)P.secs.push({t:L[0].replace(/[.:]+$/,''),items:L.slice(1).join('\n')})}
+  else if(k=='υλικα')P.items.push(...matLines(v));
+  else if(k=='εργασ'){const w=norm(v).split(/\s+/).map(x=>NW[x]??x).join(' '),a=w.match(/(?:ηλεκτρολογο[σ]?|εγω)\D*?(\d+(?:\.\d+)?)/),b=w.match(/βοηθο[σ]?\D*?(\d+(?:\.\d+)?)/);if(a)P.dme=a[1];if(b)P.dh=b[1]}
+  else if(k=='διευκ')P.clar=bl(v).join('\n')});
+ if(!P.title&&P.obj)P.title=P.obj.split('\n')[0].slice(0,80);return P}
+
+/* ---------- Αναζήτηση, χαμηλά αποθέματα, παραγγελίες, διαγραφή προσφορών ---------- */
+const LK={α:'a',β:'b',ε:'e',ζ:'z',η:'h',ι:'i',κ:'k',μ:'m',ν:'n',ο:'o',ρ:'p',τ:'t',υ:'y',χ:'x'};
+const fold=s=>norm(s).replace(/[α-ω]/g,c=>LK[c]||c);
+const PL={'τεμ':['τεμάχιο','τεμάχια'],'μ':['μέτρο','μέτρα'],'μ καλωδίου':['μέτρο καλωδίου','μέτρα καλωδίου'],'ρολό':['ρολό','ρολά'],'κουτί':['κουτί','κουτιά'],'κουλούρα':['κουλούρα','κουλούρες'],'κιλό':['κιλό','κιλά'],'λίτρο':['λίτρο','λίτρα']};
+const pl=(u,q)=>(PL[u]||[u,u])[num(q)==1?0:1];
+const ST_O={ordered:'Παραγγέλθηκε',partial:'Μερική παραλαβή',received:'Παραλήφθηκε',cancelled:'Ακυρώθηκε'};
+const isOpen=o=>['ordered','partial'].includes(o.status);
+const isLow=m=>num(m.min)>0&&num(m.qty)<=num(m.min);
+async function pendMap(){const P={};(await all('orders')).filter(isOpen).forEach(o=>o.lines.forEach(l=>P[l.mid]=(P[l.mid]||0)+Math.max(0,l.q-l.r)));return P}
+const sugg=(m,p)=>Math.max(0,num(m.min)-num(m.qty)-(p||0));
+const orderText=L=>'ΠΑΡΑΓΓΕΛΙΑ ΗΛΕΚΤΡΟΛΟΓΙΚΟΥ ΥΛΙΚΟΥ\n\n'+L.map((l,i)=>`${i+1}. ${l.d} — ${l.q} ${pl(l.u,l.q)}`).join('\n')+'\n\nΠαρακαλώ επιβεβαιώστε τη διαθεσιμότητα και τις τιμές.';
+let ORD={q:{}},LOW=[];
+const ordLines=()=>LOW.map(m=>({mid:m.id,d:m.d,u:m.unit,q:num(ORD.q[m.id]??m._s)})).filter(l=>l.q>0);
 Object.assign(VIEWS,{
-async dict(){return `<h2>Νέα προσφορά με υπαγόρευση</h2><div class="card" style="font-size:14px">Πάτα στο πλαίσιο και μετά το 🎤 του πληκτρολογίου. Πες τι έργο είναι και «τα υλικά είναι…» με ποσότητες. Π.χ.: <i>Τοποθέτηση φορτιστή αυτοκινήτου. Τα υλικά είναι ένας πίνακας, μία αυτόματη ασφάλεια, ένα καλώδιο 3x1,5 10 μέτρα, πέντε πρίζες.</i></div><textarea id="dt" rows="9" placeholder="Υπαγόρευσε εδώ…" style="margin-top:10px">${esc(D?.text||'')}</textarea><div class="btns"><button onclick="analyze()">Ανάλυση</button><button class="s" onclick="go('home')">Άκυρο</button></div>`},
+async low(){const ms=(await all('materials')).filter(isLow).sort(by('d')),P=await pendMap();
+ ms.forEach(m=>{m._p=P[m.id]||0;m._s=sugg(m,m._p)});LOW=ms.filter(m=>m._s>0);const cov=ms.filter(m=>m._s==0);
+ return `<h2>Χαμηλά αποθέματα</h2>${ms.length?'':'<div class="card">✅ Κανένα υλικό δεν είναι στο ελάχιστο απόθεμα.</div>'}
+ ${LOW.map(m=>`<div class="mr"><b>${esc(m.d)}</b><br><small>Διαθέσιμο: <b>${num(m.qty)}</b> · Ελάχιστο: <b>${num(m.min)}</b> · Λείπουν: <b>${num(m.min)-num(m.qty)}</b> ${esc(pl(m.unit,num(m.min)-num(m.qty)))}${m._p?`<br>Έχουν ήδη παραγγελθεί (εκκρεμούν): ${m._p}`:''}</small><label>Ποσότητα παραγγελίας (${esc(m.unit)})</label><input inputmode="decimal" value="${esc(ORD.q[m.id]??m._s)}" oninput="ORD.q['${m.id}']=this.value"></div>`).join('')}
+ ${cov.map(m=>`<div class="row" style="opacity:.7;border-left-color:#28a745"><div><b>${esc(m.d)}</b><small>Διαθέσιμο ${num(m.qty)} · Ελάχιστο ${num(m.min)} · ✅ έχει παραγγελθεί, περιμένει παραλαβή (${m._p})</small></div></div>`).join('')}
+ <div id="cpbox"></div>
+ <div class="btns">${LOW.length?`<button onclick="copyOrd()">📋 Αντιγραφή λίστας παραγγελίας</button><button onclick="confirmOrd()">✔️ Επιβεβαίωση παραγγελίας</button>`:''}<button class="s" onclick="go('orders')">Παραγγελίες</button><button class="s" onclick="go('stock')">‹ Αποθήκη</button></div>`},
+async orders(){const l=(await all('orders')).sort((a,b)=>b.no-a.no);
+ return `<h2>Παραγγελίες</h2>${l.map(o=>row(`go('orderC','${o.id}')`,'Παραγγελία № '+o.no,dt(o.date)+' · '+ST_O[o.status]+(isOpen(o)?' · εκκρεμούν '+o.lines.filter(x=>x.q>x.r).length+' υλικά':''),o.lines.length+' υλικά')).join('')||'<p>Καμία παραγγελία ακόμα. Φτιάξε μία από τα Χαμηλά αποθέματα.</p>'}<div class="btns"><button class="s" onclick="go('low')">‹ Χαμηλά αποθέματα</button></div>`},
+async orderC(id){const o=await get('orders',id),op=isOpen(o);
+ return `<h2>Παραγγελία № ${o.no}</h2><p>${dt(o.date)} · <b>${ST_O[o.status]}</b></p>${o.lines.map((l,i)=>`<div class="mr"><b>${esc(l.d)}</b><br><small>Παραγγέλθηκαν ${l.q} ${esc(pl(l.u,l.q))} · Παρελήφθησαν ${l.r} · <b>Εκκρεμούν ${Math.max(0,l.q-l.r)}</b></small>${op?`<div class="g" style="grid-template-columns:1fr 1fr"><div><small>Ποσότητα παραγγελίας</small><input id="oq${i}" inputmode="decimal" value="${l.q}"></div><div><small>Παραλαβή τώρα</small><input id="or${i}" inputmode="decimal" value="0"></div></div>`:''}</div>`).join('')}
+ ${op?`<div class="btns"><button onclick="recvOrd('${id}')">📦 Παραλαβή υλικών</button><button class="s" onclick="editOrd('${id}')">Αποθήκευση ποσοτήτων παραγγελίας</button><button class="d" onclick="cancelOrd('${id}')">Ακύρωση παραγγελίας</button></div><small>Η παραλαβή αυξάνει το απόθεμα μόνο με όσα γράψεις στο «Παραλαβή τώρα». Η επεξεργασία και η ακύρωση δεν αλλάζουν το απόθεμα.</small>`:''}<div class="btns"><button class="s" onclick="go('orders')">‹ Πίσω</button></div>`}});
+async function copyOrd(){const L=ordLines();if(!L.length)return alert('Δεν υπάρχει ποσότητα παραγγελίας.');const t=orderText(L);
+ try{await navigator.clipboard.writeText(t);alert('Η λίστα αντιγράφηκε. Επικόλλησέ τη στο μήνυμα προς τον προμηθευτή.')}
+ catch{$('#cpbox').innerHTML=`<label>Κράτησε πατημένο στο κείμενο → Επιλογή όλων → Αντιγραφή</label><textarea id="cpt" rows="10" readonly>${esc(t)}</textarea>`;$('#cpt').select()}}
+async function confirmOrd(){const L=ordLines();if(!L.length)return alert('Δεν υπάρχει ποσότητα παραγγελίας.');
+ if(!confirm('Να καταχωριστεί η παραγγελία με '+L.length+' υλικά;\nΤο απόθεμα ΔΕΝ αλλάζει μέχρι να δηλώσεις παραλαβή.'))return;
+ const n=(await all('orders')).reduce((t,o)=>Math.max(t,o.no),0)+1;
+ await put('orders',{id:uid(),no:n,date:Date.now(),status:'ordered',lines:L.map(l=>({...l,r:0}))});ORD={q:{}};go('orders')}
+async function recvOrd(id){const o=await get('orders',id),N=o.lines.map((l,i)=>num($('#or'+i).value));
+ if(!N.some(n=>n>0))return alert('Γράψε την ποσότητα που παρέλαβες σε τουλάχιστον ένα υλικό.');
+ for(let i=0;i<N.length;i++)if(N[i]>o.lines[i].q-o.lines[i].r&&!confirm('Για «'+o.lines[i].d+'» δηλώνεις περισσότερα από όσα εκκρεμούν. Συνέχεια;'))return;
+ for(let i=0;i<N.length;i++){const l=o.lines[i],n=N[i];if(n<=0)continue;const m=await get('materials',l.mid);
+  if(m){m.qty=String(num(m.qty)+n);await put('materials',m)}
+  await put('moves',{id:uid(),mid:l.mid,date:Date.now(),delta:n,note:'Παραλαβή – παραγγελία № '+o.no});l.r+=n}
+ o.status=o.lines.every(l=>l.r>=l.q)?'received':'partial';await put('orders',o);alert('Το απόθεμα ενημερώθηκε.');go('orderC',id)}
+async function editOrd(id){const o=await get('orders',id),N=o.lines.map((l,i)=>num($('#oq'+i).value));
+ for(let i=0;i<N.length;i++)if(!(N[i]>0)||N[i]<o.lines[i].r)return alert('Η ποσότητα για «'+o.lines[i].d+'» πρέπει να είναι μεγαλύτερη από 0 και όχι μικρότερη από όσα έχεις ήδη παραλάβει.');
+ o.lines.forEach((l,i)=>l.q=N[i]);o.status=o.lines.every(l=>l.r>=l.q)?'received':o.lines.some(l=>l.r>0)?'partial':'ordered';await put('orders',o);alert('Αποθηκεύτηκε.');go('orderC',id)}
+async function cancelOrd(id){if(!confirm('Να ακυρωθεί η παραγγελία;\nΤο απόθεμα δεν αλλάζει (ό,τι έχει ήδη παραληφθεί μένει στην αποθήκη).'))return;
+ const o=await get('orders',id);o.status='cancelled';await put('orders',o);go('orders')}
+/* διαγραφή προσφορών + σύρσιμο */
+const qrow=q=>`<div class="sw" data-s="${esc(fold(q.no+' '+q.title+' '+(q.cl?.name||'')))}"><div class="swbg" onclick="delQ('${q.id}')">🗑</div><div class="swfg row" onclick="qopen(this,'${q.id}')"><div><b>№ ${q.no} – ${esc(q.title)}</b><small>${esc((q.cl?.name||'—')+' · '+dt(q.date)+' · '+ST_Q[q.status]+(q.version>1?' · έκδ.'+q.version:''))}</small></div><span>${eur(calc(q).net)}<br><button class="d sm" onclick="event.stopPropagation();delQ('${q.id}')">🗑 Διαγραφή</button></span></div></div>`;
+function qopen(el,id){if(Date.now()-(+el.dataset.sw||0)<400)return;if(el.classList.contains('open')){el.classList.remove('open');el.style.transform='';return}go('quoteV',id)}
+async function delQ(id){const q=await get('quotes',id);if(!q)return;
+ if(!confirm('Να διαγραφεί οριστικά η προσφορά № '+q.no+' – '+q.title+';'+(q.deducted?'\nΠροσοχή: τα υλικά της έχουν ήδη αφαιρεθεί από την αποθήκη και δεν θα επιστραφούν.':'')+'\nΗ ενέργεια δεν αναιρείται.'))return V=='quotes'&&render();
+ await del('quotes',id);V=='quotes'?render():go('quotes')}
+(()=>{let s=null;
+ document.addEventListener('pointerdown',e=>{const f=e.target.closest('.swfg');if(!f||e.target.closest('button'))return;s={f,x:e.clientX,y:e.clientY,o:f.classList.contains('open')?90:0,m:false};f.style.transition='none'});
+ document.addEventListener('pointermove',e=>{if(!s)return;const dx=e.clientX-s.x,dy=e.clientY-s.y;if(!s.m){if(Math.abs(dx)<8)return;if(Math.abs(dy)>Math.abs(dx)){s.f.style.transition='';s=null;return}s.m=true}
+  s.f.style.transform=`translateX(${Math.max(0,Math.min(110,s.o+dx))}px)`});
+ const end=()=>{if(!s)return;const f=s.f,m=s.m;s=null;f.style.transition='';if(m){const op=parseFloat((f.style.transform.match(/[\d.]+/)||[0])[0])>45;f.classList.toggle('open',op);f.style.transform=op?'translateX(90px)':'';f.dataset.sw=Date.now()}};
+ document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end)})();
+
+let D=null,IMP=[];
+VIEWS.report=async()=>{const qs=(await all('quotes')).filter(q=>q.status=='approved'),M={};
+ qs.forEach(q=>{const d=new Date(q.approvedAt||q.date),k=d.getFullYear()*100+d.getMonth(),c=calc(q),o=M[k]||(M[k]={y:d.getFullYear(),m:d.getMonth(),n:0,net:0,cost:0,pr:0});o.n++;o.net+=c.net;o.cost+=c.matCost+c.labCost+c.extCost;o.pr+=c.profit});
+ const ks=Object.keys(M).sort().reverse(),now=new Date(),kc=now.getFullYear()*100+now.getMonth(),pv=new Date(now.getFullYear(),now.getMonth()-1),kp=pv.getFullYear()*100+pv.getMonth(),cu=M[kc]||{n:0,net:0,pr:0},pm=M[kp]||{n:0,net:0,pr:0};
+ const mn=o=>new Date(o.y,o.m).toLocaleDateString('el-GR',{month:'long',year:'numeric'});
+ return `<h2>Μηνιαία αναφορά</h2><div class="card"><b style="font-size:18px">Αυτός ο μήνας</b><br>${cu.n} έργα · έσοδα ${eur(cu.net)}<br><b>Κέρδος ${eur(cu.pr)}</b><br><small>Προηγούμενος μήνας: ${eur(pm.pr)} (διαφορά ${cu.pr>=pm.pr?'+':'−'}${eur(Math.abs(cu.pr-pm.pr))})</small></div><h3>Ανά μήνα</h3>${ks.map(k=>{const o=M[k];return row('',mn(o),o.n+' έργα · έσοδα '+eur(o.net)+' · κόστος '+eur(o.cost),eur(o.pr))}).join('')||'<p>Δεν υπάρχουν εγκεκριμένες προσφορές ακόμα. Άνοιξε μια προσφορά και διάλεξε «Εγκρίθηκε».</p>'}<small>Εκτιμήσεις από τις εγκεκριμένες προσφορές, έσοδα χωρίς ΦΠΑ. Ο μήνας μετράει από την ημέρα έγκρισης.</small><div class="btns"><button class="s" onclick="go('home')">Πίσω</button></div>`};
+Object.assign(VIEWS,{
+async dict(){return `<h2>Νέα προσφορά από κείμενο</h2><div class="card" style="font-size:14px">Επικόλλησε εδώ το κείμενο που σου έδωσε το Claude, ή υπαγόρευσε με το 🎤 λέγοντας τις λέξεις <b>Πελάτης, Τίτλος, Περιοχή, Περιγραφή, Ενότητα, Υλικά, Εργασία</b>. Αν δεν πεις λέξεις, θεωρώ ότι είπες μόνο υλικά.</div><textarea id="dt" rows="12" placeholder="Επικόλληση ή υπαγόρευση…" style="margin-top:10px">${esc(D?.text||'')}</textarea><div class="btns"><button onclick="analyze()">Ανάλυση</button><button class="s" onclick="go('home')">Άκυρο</button></div>`},
 async dictR(){const cl=(await all('clients')).sort(by('name'));
  return `<h2>Έλεγξε τι κατάλαβα</h2><p style="font-size:14px;color:#567;margin-bottom:8px">Διόρθωσε ό,τι χρειάζεται. Οι κόκκινες γραμμές είναι υλικά που δεν έχω στην αποθήκη: γράψε μία φορά την τιμή αγοράς και θα τη θυμάμαι.</p>
- ${D.items.map((x,i)=>`<div class="mr"><input value="${esc(x.d)}" oninput="D.items[${i}].d=this.value"><div class="g"><div><small>Ποσότ.</small><input inputmode="decimal" value="${esc(x.q)}" oninput="D.items[${i}].q=this.value"></div><div><small>Μονάδα</small><input value="${esc(x.u)}" oninput="D.items[${i}].u=this.value"></div><div><small>Τιμή αγοράς €</small><input inputmode="decimal" value="${esc(x.price)}" oninput="D.items[${i}].price=this.value"></div></div>${x.mid?'<small>✅ Βρέθηκε στην αποθήκη</small>':'<small style="color:#c53030">⚠️ Νέο υλικό – χρειάζομαι τιμή αγοράς</small>'} <button class="d sm" onclick="D.items.splice(${i},1);go('dictR')">Αφαίρεση</button></div>`).join('')}
+ ${D.items.map((x,i)=>`<div class="mr"><input value="${esc(x.d)}" oninput="D.items[${i}].d=this.value"><div class="g"><div><small>Ποσότ.</small><input inputmode="decimal" value="${esc(x.q)}" oninput="D.items[${i}].q=this.value"></div><div><small>Μονάδα</small><input value="${esc(x.u)}" oninput="D.items[${i}].u=this.value"></div><div><small>Τιμή αγοράς €</small><input inputmode="decimal" value="${esc(x.price)}" oninput="D.items[${i}].price=this.value"></div></div>${x.mid?'<small>✅ Βρέθηκε στην αποθήκη</small>':'<small style="color:#c53030">⚠️ '+(x.warn||'Νέο υλικό – χρειάζομαι τιμή αγοράς')+'</small>'} <button class="d sm" onclick="D.items.splice(${i},1);go('dictR')">Αφαίρεση</button></div>`).join('')}
  <h3>Εργασία</h3><div class="grid"><div><label>Μεροκάματό σου €</label><input inputmode="decimal" value="${esc(D.lab.me)}" oninput="D.lab.me=this.value"></div><div><label>Ημέρες σου</label><input inputmode="decimal" value="${esc(D.lab.dme)}" oninput="D.lab.dme=this.value"></div><div><label>Μεροκάματο βοηθού €</label><input inputmode="decimal" value="${esc(D.lab.h)}" oninput="D.lab.h=this.value"></div><div><label>Ημέρες βοηθού</label><input inputmode="decimal" value="${esc(D.lab.dh)}" oninput="D.lab.dh=this.value"></div></div><small>Τα μεροκάματα θυμούνται για την επόμενη φορά. Το μεροκάματο βοηθού μετράει και ως κόστος σου.</small>
  <label>Πελάτης *</label><select onchange="D.lab.cl=this.value"><option value="">—</option>${cl.map(c=>`<option value="${c.id}"${D.lab.cl==c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select>
- <div class="btns"><button onclick="dictOK()">Δημιουργία προσφοράς</button><button class="s" onclick="go('dict')">‹ Πίσω</button></div>`},
+ ${D.clName&&!D.lab.cl?`<small style="color:#c53030">Δεν βρήκα πελάτη «${esc(D.clName)}». Διάλεξε από τη λίστα ή φτιάξ' τον πρώτα από τους Πελάτες.</small>`:''}<div class="btns"><button onclick="dictOK()">Δημιουργία προσφοράς</button><button class="s" onclick="go('dict')">‹ Πίσω</button></div>`},
 async imp(){return `<h2>Εισαγωγή τιμών προμηθευτή</h2><div class="card" style="font-size:14px">Μία γραμμή ανά υλικό: <b>περιγραφή ; τιμή ; μονάδα ; κωδικός</b> (μονάδα και κωδικός προαιρετικά, η τιμή χωρίς ΦΠΑ). Στείλε μου την προσφορά του προμηθευτή στη συνομιλία με το Claude και θα σου τη γυρίσω έτοιμη να την κολλήσεις εδώ.</div><label>Προμηθευτής</label><input id="isup"><label>Γραμμές</label><textarea id="itx" rows="9"></textarea><div class="btns"><button onclick="impPrev()">Έλεγχος</button><button class="s" onclick="go('stock')">Πίσω</button></div><div id="ipv"></div>`}});
-async function analyze(){const t=$('#dt').value.trim();if(!t)return alert('Υπαγόρευσε ή γράψε πρώτα το έργο.');
- const m=t.match(/υλικ[άα]\s*(μου\s*)?(είναι|:)?/i),i=m?m.index:-1;
- const title=(i>0?t.slice(0,i):'').replace(/[\s,.:]+$/,'').replace(/\s+τα$/i,'').trim();
- const items=parseItems(i>=0?t.slice(i+m[0].length):t);
- if(!items.length)return alert('Δεν κατάλαβα υλικά. Δοκίμασε π.χ.: «Τα υλικά είναι ένας πίνακας, πέντε πρίζες».');
- const ms=await all('materials');
- items.forEach(x=>{const k=matchMat(x,ms);if(k){x.mid=k.id;x.price=String(num(k.price));x.u=k.unit||x.u;x.d=k.d}else x.price=''});
- D={text:t,title:cap(title),items,lab:{me:SET.rateMe||'',h:SET.rateH||'',dme:'1',dh:'0',cl:''}};go('dictR')}
+async function analyze(){const t=$('#dt').value.trim();if(!t)return alert('Επικόλλησε ή υπαγόρευσε πρώτα το κείμενο.');
+ const P=parseText(t);if(!P.items.length)return alert('Δεν βρήκα υλικά. Γράψε «Υλικά:» και μετά τη λίστα, π.χ. «Υλικά: ένας πίνακας, πέντε πρίζες».');
+ const ms=await all('materials'),cls=await all('clients');
+ P.items.forEach(x=>{const k=matchMat(x,ms);if(k&&x.u=='μ'&&!['μ','μ καλωδίου'].includes(k.unit)){x.warn='Στην αποθήκη το έχεις ανά «'+k.unit+'». Εδώ είναι σε μέτρα: γράψε την τιμή ανά μέτρο.';x.price=''}else if(k){x.mid=k.id;x.price=String(num(k.price));x.u=k.unit||x.u;x.d=k.d}else x.price=''});
+ const cn=norm(P.cl),c=cn&&cls.find(c=>norm(c.name).includes(cn)||cn.includes(norm(c.name)));
+ D={text:t,title:cap(P.title),area:P.area,obj:P.obj,secs:P.secs,clar:P.clar,clName:P.cl,items:P.items,lab:{me:SET.rateMe||'',h:SET.rateH||'',dme:P.dme||'1',dh:P.dh||'0',cl:c?c.id:''}};go('dictR')}
 async function dictOK(){const L=D.lab;
  if(!L.cl)return alert('Διάλεξε πελάτη.');
  if(D.items.some(x=>!x.mid&&String(x.price).trim()===''))return alert('Γράψε την τιμή αγοράς στις κόκκινες γραμμές.');
  for(const x of D.items)if(!x.mid){const m={id:uid(),d:x.d,unit:x.u||'τεμ',qty:'0',min:'',price:String(num(x.price)),cat:'',code:'',supplier:'',priceDate:Date.now(),hist:[{t:Date.now(),p:num(x.price)}]};await put('materials',m);x.mid=m.id}
  SET.rateMe=L.me;SET.rateH=L.h;await saveSet();
- await newQ(L.cl);Q.title=D.title;Q.objective=D.title;Q.sections=[{t:'Εργασίες',items:D.title}];
+ await newQ(L.cl);Q.title=D.title||'Ηλεκτρολογικές εργασίες';Q.area=D.area||'';Q.objective=D.obj||D.title;Q.sections=D.secs.length?D.secs:[{t:'Εργασίες',items:D.obj||D.title}];if(D.clar)Q.clar=D.clar;
  Q.mats=D.items.map(x=>({mid:x.mid,d:x.d,q:x.q,u:x.u,cost:String(num(x.price)),mk:SET.markup}));
  if(num(L.dme)>0)Q.labor.push({d:'Ηλεκτρολόγος – ημέρες',q:L.dme,cost:'0',rate:L.me});
  if(num(L.dh)>0)Q.labor.push({d:'Βοηθός – ημέρες',q:L.dh,cost:L.h,rate:L.h});

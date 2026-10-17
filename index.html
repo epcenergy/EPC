@@ -124,7 +124,7 @@ const NAV=[['home','🏠','Αρχική'],['clients','👤','Πελάτες'],['
 const go=(v,p)=>{V=v;P=p;scrollTo(0,0);render()};
 async function render(){
  document.body.classList.remove('pv');
- const tab=V=='buy'?'stock':V;
+ const tab=({buy:'stock',imp:'stock',dict:'quotes',dictR:'quotes'})[V]||V;
  $('#nav').innerHTML=NAV.map(([k,i,l])=>`<button class="${tab.slice(0,4)==k.slice(0,4)?'on':''}" onclick="go('${k}')"><b>${i}</b>${l}</button>`).join('');
  $('#m').innerHTML=await VIEWS[V](P)}
 const VIEWS={
@@ -137,7 +137,7 @@ async home(){
  const old=!SET.lastBackup||Date.now()-SET.lastBackup>7*864e5;
  return `<h2>Αρχική</h2>${old?`<div class="warn">⚠️ Δεν υπάρχει πρόσφατο αντίγραφο ασφαλείας. Αν χαθεί το κινητό ή σβηστούν τα δεδομένα του browser, χάνονται όλα. <a href="#" onclick="go('settings');return false">Δημιούργησε αντίγραφο</a></div>`:''}
  <div class="grid"><div class="card"><b>${act}</b>Ενεργά έργα</div><div class="card"><b>${pend}</b>Προσφορές σε εκκρεμότητα</div><div class="card" onclick="go('stock')"><b>${low.length}</b>Χαμηλά αποθέματα</div><div class="card"><b>${eur(prof)}</b>Εκτιμώμενο κέρδος εγκεκριμένων</div></div>
- <div class="btns"><button onclick="newQ()">+ Νέα προσφορά</button><button class="s" onclick="go('clientC','')">+ Νέος πελάτης</button></div>`},
+ <div class="btns"><button onclick="D=null;go('dict')" style="flex-basis:100%">🎤 Νέα προσφορά με υπαγόρευση</button><button class="s" onclick="newQ()">+ Χειροκίνητη προσφορά</button><button class="s" onclick="go('clientC','')">+ Νέος πελάτης</button></div>`},
 async clients(){const l=(await all('clients')).sort(by('name'));
  return `<h2>Πελάτες</h2>${search()}<div id="list">${l.map(c=>row(`go('clientC','${c.id}')`,c.name,c.phone||c.address||'','',c.name+(c.phone||'')+(c.address||''))).join('')||'<p>Δεν υπάρχουν πελάτες ακόμα. Πάτα «Νέος πελάτης».</p>'}</div><button class="fab" onclick="go('clientC','')">+ Νέος πελάτης</button>`},
 async clientC(id){const c=(id&&await get('clients',id))||{};
@@ -159,7 +159,7 @@ async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv'
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">${q.mode=='full'?'Δείξε συνοπτική':'Δείξε αναλυτική'}</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1;padding:6px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button>`;return ''},
 async stock(){const l=(await all('materials')).sort(by('d'));
- return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button></div>${search()}<div id="list">${l.map(m=>{const lo=num(m.min)>0&&num(m.qty)<=num(m.min);return row(`go('stockC','${m.id}')`,m.d,[m.code,m.cat,m.supplier,eur(rnd(num(m.price)*100))+'/'+m.unit].filter(Boolean).join(' · '),num(m.qty)+' '+esc(m.unit),[m.code,m.d,m.cat,m.supplier].join(' '),lo?'low':'')}).join('')||'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}</div><button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
+ return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button><button class="s" onclick="go('imp')">📥 Εισαγωγή τιμών</button></div>${search()}<div id="list">${l.map(m=>{const lo=num(m.min)>0&&num(m.qty)<=num(m.min);return row(`go('stockC','${m.id}')`,m.d,[m.code,m.cat,m.supplier,eur(rnd(num(m.price)*100))+'/'+m.unit].filter(Boolean).join(' · '),num(m.qty)+' '+esc(m.unit),[m.code,m.d,m.cat,m.supplier].join(' '),lo?'low':'')}).join('')||'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}</div><button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
 async stockC(id){const m=(id&&await get('materials',id))||{unit:'τεμ',qty:'0'};const mv=(await all('moves')).filter(x=>x.mid==id).sort((a,b)=>b.date-a.date).slice(0,15);
  return `<h2>${m.d?esc(m.d):'Νέο υλικό'}</h2><div id="f">${F([['code','Κωδικός'],['d','Περιγραφή *'],['cat','Κατηγορία'],['unit','Μονάδα','sel',UNITS.map(u=>[u,u])],['qty','Διαθέσιμη ποσότητα','n'],['min','Ελάχιστο απόθεμα','n'],['price','Τιμή αγοράς χωρίς ΦΠΑ (€)','n'],['supplier','Προμηθευτής'],['src','Σύνδεσμος πηγής τιμής (προαιρετικό)']],m)}</div>${m.priceDate?`<small>Τιμή ενημερώθηκε: ${dt(m.priceDate)}</small>`:''}
  <div class="btns"><button onclick="saveMat('${id}')">Αποθήκευση</button><button class="s" onclick="go('stock')">Πίσω</button>${id?`<button class="d" onclick="remove('materials','${id}','stock','Διαγραφή υλικού; Οι παλιές προσφορές και το ιστορικό κινήσεων διατηρούνται.')">Διαγραφή</button>`:''}</div>
@@ -248,6 +248,72 @@ function sheet(q){const c=calc(q),GR='ΑΒΓΔΕΖΗΘΙΚ';
  <div class="footer"><p><strong>Ευχαριστούμε για την εμπιστοσύνη σας!</strong></p><p>Για οποιαδήποτε διευκρίνιση παρακαλούμε επικοινωνήστε μαζί μας.</p></div></div>`}
 function fit(){$('#sheet').style.zoom=Math.min(1,(innerWidth-8)/794)}
 addEventListener('resize',()=>document.body.classList.contains('pv')&&fit());
+/* ---------- Υπαγόρευση έργου & εισαγωγή τιμών ---------- */
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ς/g,'σ').replace(/,(?=\d)/g,'.');
+const NW={ενα:'1',μια:'1',μιασ:'1',ενασ:'1',δυο:'2',τρια:'3',τρεισ:'3',τεσσερα:'4',τεσσερισ:'4',πεντε:'5',εξι:'6',επτα:'7',εφτα:'7',οκτω:'8',οχτω:'8',εννεα:'9',εννια:'9',δεκα:'10',δωδεκα:'12',δεκαπεντε:'15',εικοσι:'20',εναμιση:'1.5',ενημισι:'1.5',δυομιση:'2.5'};
+const UN=new Set(['m','μ','μετρα','μετρο','μετρων','μετ']),STOP=new Set(['το','τα','του','των','στο','με','για','και','ειναι','μου','να','θελω']);
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const isN=s=>/^\d+(\.\d+)?$/.test(s),isSp=s=>/^\d+(\.\d+)?x\d+(\.\d+)?$/.test(s);
+function parseItems(text){
+ const out=[];let cur=null,pc=null;
+ const flush=()=>{if(!cur)return;const c=cur;cur=null;
+  const cable=c.spec||c.specN||c.alt||c.words.some(w=>norm(w).startsWith('καλωδ'));
+  if(cable){const spec=c.spec||(c.specN?c.specN+'x?':null)||(c.alt&&pc?pc.spec:null);
+   const it={d:'Καλώδιο'+(spec?' '+spec.replace('.',','):''),q:c.len||c.q||'1',u:'μ',cable:true,spec};pc=it;out.push(it)}
+  else if(c.words.length)out.push({d:cap(c.words.join(' ')),q:c.q||'1',u:'τεμ'})};
+ const nu=()=>({words:[],q:null,len:null,spec:null,specN:null,alt:false});
+ text.split(/,(?!\d)|[;\n]+|\s+και\s+|\s+μετά\s+|\.\s+/i).forEach(ch=>{
+  flush();cur=nu();
+  const T=ch.trim().split(/\s+/).filter(Boolean).map(r=>{let n=norm(r).replace(/[^\p{L}\p{N}.×]/gu,'');n=NW[n]??n;if(n=='επι'||n=='×')n='x';return{r,n}}).filter(t=>t.n);
+  for(let i=1;i<T.length-1;i++)if(T[i].n=='x'&&isN(T[i-1].n)&&isN(T[i+1].n)){T.splice(i-1,3,{r:'',n:T[i-1].n+'x'+T[i+1].n});i--}
+  for(let i=0;i<T.length;i++){const n=T[i].n,nu_=i+1<T.length&&UN.has(T[i+1].n),g=n.match(/^(\d+(?:\.\d+)?)(m|μ)$/);
+   if(n=='αλλο'){flush();cur=nu();cur.alt=true}
+   else if(g)cur.len=g[1];
+   else if(isSp(n)){const[a,b]=n.split('x');if(nu_){cur.specN=a;cur.len=b;i++}else cur.spec=n}
+   else if(isN(n)){if(nu_){cur.len=n;i++}else{if(cur.words.length||cur.alt){flush();cur=nu()}cur.q=n}}
+   else if(!STOP.has(n)&&!UN.has(n))cur.words.push(T[i].r)}
+ });flush();return out}
+const stems=s=>norm(s).split(/[^\p{L}\p{N}.x]+/u).filter(w=>w.length>1).map(w=>w.slice(0,5));
+function matchMat(it,ms){let best=null,bs=0;const a=stems(it.d);if(!a.length)return null;
+ for(const m of ms){if(it.cable&&it.spec&&!norm(m.d).includes(it.spec))continue;const b=stems(m.d),s=a.filter(w=>b.includes(w)).length/a.length;if(s>bs){bs=s;best=m}}
+ return bs>=.6?best:null}
+let D=null,IMP=[];
+Object.assign(VIEWS,{
+async dict(){return `<h2>Νέα προσφορά με υπαγόρευση</h2><div class="card" style="font-size:14px">Πάτα στο πλαίσιο και μετά το 🎤 του πληκτρολογίου. Πες τι έργο είναι και «τα υλικά είναι…» με ποσότητες. Π.χ.: <i>Τοποθέτηση φορτιστή αυτοκινήτου. Τα υλικά είναι ένας πίνακας, μία αυτόματη ασφάλεια, ένα καλώδιο 3x1,5 10 μέτρα, πέντε πρίζες.</i></div><textarea id="dt" rows="9" placeholder="Υπαγόρευσε εδώ…" style="margin-top:10px">${esc(D?.text||'')}</textarea><div class="btns"><button onclick="analyze()">Ανάλυση</button><button class="s" onclick="go('home')">Άκυρο</button></div>`},
+async dictR(){const cl=(await all('clients')).sort(by('name'));
+ return `<h2>Έλεγξε τι κατάλαβα</h2><p style="font-size:14px;color:#567;margin-bottom:8px">Διόρθωσε ό,τι χρειάζεται. Οι κόκκινες γραμμές είναι υλικά που δεν έχω στην αποθήκη: γράψε μία φορά την τιμή αγοράς και θα τη θυμάμαι.</p>
+ ${D.items.map((x,i)=>`<div class="mr"><input value="${esc(x.d)}" oninput="D.items[${i}].d=this.value"><div class="g"><div><small>Ποσότ.</small><input inputmode="decimal" value="${esc(x.q)}" oninput="D.items[${i}].q=this.value"></div><div><small>Μονάδα</small><input value="${esc(x.u)}" oninput="D.items[${i}].u=this.value"></div><div><small>Τιμή αγοράς €</small><input inputmode="decimal" value="${esc(x.price)}" oninput="D.items[${i}].price=this.value"></div></div>${x.mid?'<small>✅ Βρέθηκε στην αποθήκη</small>':'<small style="color:#c53030">⚠️ Νέο υλικό – χρειάζομαι τιμή αγοράς</small>'} <button class="d sm" onclick="D.items.splice(${i},1);go('dictR')">Αφαίρεση</button></div>`).join('')}
+ <h3>Εργασία</h3><div class="grid"><div><label>Μεροκάματό σου €</label><input inputmode="decimal" value="${esc(D.lab.me)}" oninput="D.lab.me=this.value"></div><div><label>Ημέρες σου</label><input inputmode="decimal" value="${esc(D.lab.dme)}" oninput="D.lab.dme=this.value"></div><div><label>Μεροκάματο βοηθού €</label><input inputmode="decimal" value="${esc(D.lab.h)}" oninput="D.lab.h=this.value"></div><div><label>Ημέρες βοηθού</label><input inputmode="decimal" value="${esc(D.lab.dh)}" oninput="D.lab.dh=this.value"></div></div><small>Τα μεροκάματα θυμούνται για την επόμενη φορά. Το μεροκάματο βοηθού μετράει και ως κόστος σου.</small>
+ <label>Πελάτης *</label><select onchange="D.lab.cl=this.value"><option value="">—</option>${cl.map(c=>`<option value="${c.id}"${D.lab.cl==c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select>
+ <div class="btns"><button onclick="dictOK()">Δημιουργία προσφοράς</button><button class="s" onclick="go('dict')">‹ Πίσω</button></div>`},
+async imp(){return `<h2>Εισαγωγή τιμών προμηθευτή</h2><div class="card" style="font-size:14px">Μία γραμμή ανά υλικό: <b>περιγραφή ; τιμή ; μονάδα ; κωδικός</b> (μονάδα και κωδικός προαιρετικά, η τιμή χωρίς ΦΠΑ). Στείλε μου την προσφορά του προμηθευτή στη συνομιλία με το Claude και θα σου τη γυρίσω έτοιμη να την κολλήσεις εδώ.</div><label>Προμηθευτής</label><input id="isup"><label>Γραμμές</label><textarea id="itx" rows="9"></textarea><div class="btns"><button onclick="impPrev()">Έλεγχος</button><button class="s" onclick="go('stock')">Πίσω</button></div><div id="ipv"></div>`}});
+async function analyze(){const t=$('#dt').value.trim();if(!t)return alert('Υπαγόρευσε ή γράψε πρώτα το έργο.');
+ const m=t.match(/υλικ[άα]\s*(μου\s*)?(είναι|:)?/i),i=m?m.index:-1;
+ const title=(i>0?t.slice(0,i):'').replace(/[\s,.:]+$/,'').replace(/\s+τα$/i,'').trim();
+ const items=parseItems(i>=0?t.slice(i+m[0].length):t);
+ if(!items.length)return alert('Δεν κατάλαβα υλικά. Δοκίμασε π.χ.: «Τα υλικά είναι ένας πίνακας, πέντε πρίζες».');
+ const ms=await all('materials');
+ items.forEach(x=>{const k=matchMat(x,ms);if(k){x.mid=k.id;x.price=String(num(k.price));x.u=k.unit||x.u;x.d=k.d}else x.price=''});
+ D={text:t,title:cap(title),items,lab:{me:SET.rateMe||'',h:SET.rateH||'',dme:'1',dh:'0',cl:''}};go('dictR')}
+async function dictOK(){const L=D.lab;
+ if(!L.cl)return alert('Διάλεξε πελάτη.');
+ if(D.items.some(x=>!x.mid&&String(x.price).trim()===''))return alert('Γράψε την τιμή αγοράς στις κόκκινες γραμμές.');
+ for(const x of D.items)if(!x.mid){const m={id:uid(),d:x.d,unit:x.u||'τεμ',qty:'0',min:'',price:String(num(x.price)),cat:'',code:'',supplier:'',priceDate:Date.now(),hist:[{t:Date.now(),p:num(x.price)}]};await put('materials',m);x.mid=m.id}
+ SET.rateMe=L.me;SET.rateH=L.h;await saveSet();
+ await newQ(L.cl);Q.title=D.title;Q.objective=D.title;Q.sections=[{t:'Εργασίες',items:D.title}];
+ Q.mats=D.items.map(x=>({mid:x.mid,d:x.d,q:x.q,u:x.u,cost:String(num(x.price)),mk:SET.markup}));
+ if(num(L.dme)>0)Q.labor.push({d:'Ηλεκτρολόγος – ημέρες',q:L.dme,cost:'0',rate:L.me});
+ if(num(L.dh)>0)Q.labor.push({d:'Βοηθός – ημέρες',q:L.dh,cost:L.h,rate:L.h});
+ go('quoteEd')}
+async function impPrev(){const ms=await all('materials'),sup=$('#isup').value.trim();IMP=[];
+ $('#itx').value.split('\n').forEach(l=>{const p=l.split(/;|\t/).map(s=>s.trim());if(!p[0]||!(num(p[1])>0))return;
+  const code=p[3]||'',ex=ms.find(m=>(code&&m.code==code)||norm(m.d)==norm(p[0]));IMP.push({d:p[0],price:num(p[1]),u:p[2]||(ex?.unit)||'τεμ',code,sup,ex})});
+ $('#ipv').innerHTML=IMP.length?`<h3>${IMP.length} γραμμές</h3>${IMP.map(x=>row('',x.d,x.ex?(num(x.ex.price)==x.price?'Ίδια τιμή':'Αλλαγή τιμής: '+num(x.ex.price)+' → '+x.price):'Νέο υλικό',eur(rnd(x.price*100)))).join('')}<div class="btns"><button onclick="impDo()">Εισαγωγή όλων</button></div>`:'<p>Δεν βρήκα έγκυρες γραμμές (χρειάζεται περιγραφή ; τιμή).</p>'}
+async function impDo(){for(const x of IMP){const t=Date.now();let m=x.ex;
+  if(m){if(num(m.price)!=x.price){m.hist=(m.hist||[]).concat({t,p:x.price});m.priceDate=t}m.price=String(x.price);if(x.sup)m.supplier=x.sup}
+  else m={id:uid(),d:x.d,unit:x.u,qty:'0',min:'',price:String(x.price),cat:'',code:x.code,supplier:x.sup,priceDate:t,hist:[{t,p:x.price}]};
+  await put('materials',m)}alert('Οι τιμές καταχωρίστηκαν.');go('stock')}
+
 /* ---------- Εκκίνηση ---------- */
 (async()=>{
  SET={...DEF,...((await get('kv','set'))||{})};

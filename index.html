@@ -211,6 +211,7 @@ function edHTML(){return `<h2>${Q.no?'Προσφορά № '+Q.no:'Νέα προ
  <div id="tot">${totHTML()}</div><div class="btns"><button onclick="saveQ()">Αποθήκευση & προεπισκόπηση</button><button class="s" onclick="go('quotes')">Άκυρο</button></div>`}
 async function saveQ(){
  if(!Q.clientId||!Q.title.trim())return alert('Διάλεξε πελάτη και γράψε τίτλο έργου.');
+ const bad=Q.mats.findIndex(x=>!String(x.d||'').trim()||!(num(x.q)>0));if(bad>=0)return alert('Στο υλικό № '+(bad+1)+' λείπει η περιγραφή ή η ποσότητα. Συμπλήρωσέ τα ή σβήσε τη γραμμή.');
  const cl=await get('clients',Q.clientId);Q.cl={name:cl.name,phone:cl.phone,address:cl.address};
  if(!Q.projectId){const p={id:uid(),clientId:Q.clientId,title:Q.title,area:Q.area,status:'pending',desc:Q.objective};await put('projects',p);Q.projectId=p.id}
  if(!Q.no){Q.no=SET.nextNo;SET.nextNo++;await saveSet()}else Q.version=(Q.version||1)+1;
@@ -444,14 +445,14 @@ function applyMat(x,m){x.warn='';
  x.d=m.d;return true}
 /* ---------- Αγορές (υλικά προς αγορά) ---------- */
 let BUY=[],BQ={};
-const buyLines=()=>BUY.map(n=>({mid:n.mid||null,c:n.c||'',d:n.d,u:n.u,q:num(BQ[n.k]??n.miss)})).filter(l=>l.q>0);
+const buyLines=()=>BUY.filter(n=>String(n.d||'').trim()).map(n=>({mid:n.mid||null,c:n.c||'',d:n.d,u:n.u,q:num(BQ[n.k]??n.miss)})).filter(l=>l.q>0);
 VIEWS.buy=async()=>{const [qs,ms,P]=await Promise.all([all('quotes'),all('materials'),pendMap()]);const M=Object.fromEntries(ms.map(m=>[m.id,m])),need={};
  qs.filter(q=>q.status=='approved'&&!q.deducted).forEach(q=>q.mats.forEach(x=>{const m=x.mid&&M[x.mid],f=num(x.f)||1,k=m?m.id:'x:'+norm(x.d);
   const o=need[k]=need[k]||{k,mid:m?m.id:null,c:m?m.code||'':'',d:m?m.d:x.d,u:m?m.unit:x.u,q:0,unitCost:m?num(x.cost)/f:num(x.cost)};o.q+=num(x.q)*f}));
  let tot=0;BUY=Object.values(need).map(n=>{const av=n.mid?num(M[n.mid].qty):0,pd=n.mid?(P[n.mid]||0):0,miss=+Math.max(0,n.q-av-pd).toFixed(3);const c=rnd(miss*n.unitCost*100);tot+=c;return{...n,av,pd,miss,cs:c}}).filter(n=>n.miss>0).sort(by('d'));
  EXPF=buyLines;
  return `<h2>Υλικά προς αγορά</h2><p style="margin-bottom:10px;color:#567;font-size:14px">Από εγκεκριμένες προσφορές που δεν έχουν ακόμα αφαιρέσει υλικά από την αποθήκη. Αφαιρούνται όσα υπάρχουν στην αποθήκη και όσα έχουν ήδη παραγγελθεί.</p>
- ${BUY.map(n=>`<div class="mr"><b>${esc(n.d)}</b>${n.c?` <small>(${esc(n.c)})</small>`:''}<br><small>Απαιτούνται ${+n.q.toFixed(3)} · Αποθήκη ${n.av} · Ήδη παραγγελμένα ${n.pd} · <b>Λείπουν ${n.miss} ${esc(pl(n.u,n.miss))}</b> (≈ ${eur(n.cs)})${n.mid?'':'<br>✍️ Χειροκίνητο υλικό: μπαίνει στο κείμενο αλλά όχι σε παραγγελία αποθήκης.'}</small><label>Ποσότητα για παραγγελία (${esc(n.u)})</label><input inputmode="decimal" value="${esc(BQ[n.k]??n.miss)}" oninput="BQ['${n.k}']=this.value"></div>`).join('')||'<div class="card">✅ Δεν λείπει τίποτα.</div>'}
+ ${BUY.map(n=>`<div class="mr"><b>${n.d&&String(n.d).trim()?esc(n.d):'⚠️ (υλικό χωρίς περιγραφή – διόρθωσέ το στην προσφορά, δεν μπαίνει στην παραγγελία)'}</b>${n.c?` <small>(${esc(n.c)})</small>`:''}<br><small>Απαιτούνται ${+n.q.toFixed(3)} · Αποθήκη ${n.av} · Ήδη παραγγελμένα ${n.pd} · <b>Λείπουν ${n.miss} ${esc(pl(n.u,n.miss))}</b> (≈ ${eur(n.cs)})${n.mid?'':'<br>✍️ Χειροκίνητο υλικό: μπαίνει στο κείμενο αλλά όχι σε παραγγελία αποθήκης.'}</small><label>Ποσότητα για παραγγελία (${esc(n.u)})</label><input inputmode="decimal" value="${esc(BQ[n.k]??n.miss)}" oninput="BQ['${n.k}']=this.value"></div>`).join('')||'<div class="card">✅ Δεν λείπει τίποτα.</div>'}
  <div class="card"><b>Εκτιμώμενο κόστος αγοράς: ${eur(tot)}</b></div><div id="cpbox"></div>${BUY.length?expBar()+`<div class="btns"><button onclick="buyOrder()">✔️ Δημιουργία παραγγελίας (υλικά αποθήκης)</button></div>`:''}<div class="btns"><button class="s" onclick="go('stock')">Πίσω</button></div>`};
 async function buyOrder(){const L=buyLines(),W=L.filter(l=>l.mid);if(!W.length)return alert('Δεν υπάρχουν υλικά αποθήκης για παραγγελία.');
  if(W.length<L.length&&!confirm('Τα χειροκίνητα υλικά δεν μπαίνουν στην παραγγελία αποθήκης (μόνο στο κείμενο). Συνέχεια;'))return;await placeOrder(W)}

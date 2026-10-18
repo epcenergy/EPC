@@ -163,7 +163,7 @@ async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m])
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
-async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 4.3 (18/10 βράδυ)</small><div id="f">${F([['phone','Τηλέφωνο'],['email','Email'],['web','Ιστοσελίδα'],['nextNo','Επόμενος αριθμός προσφοράς','n'],['validDays','Ισχύς προσφοράς (ημέρες)','n'],['vat','Προεπιλεγμένος ΦΠΑ %','n'],['markup','Προεπιλεγμένο κέρδος υλικών %','n'],['clar','Προεπιλεγμένες διευκρινίσεις (μία ανά γραμμή, «Τίτλος: κείμενο»)','area']],SET)}</div>
+async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 4.4</small><div id="f">${F([['phone','Τηλέφωνο'],['email','Email'],['web','Ιστοσελίδα'],['nextNo','Επόμενος αριθμός προσφοράς','n'],['validDays','Ισχύς προσφοράς (ημέρες)','n'],['vat','Προεπιλεγμένος ΦΠΑ %','n'],['markup','Προεπιλεγμένο κέρδος υλικών %','n'],['clar','Προεπιλεγμένες διευκρινίσεις (μία ανά γραμμή, «Τίτλος: κείμενο»)','area']],SET)}</div>
  <div class="btns"><button onclick="saveSettings()">Αποθήκευση ρυθμίσεων</button></div>
  <h3>Αντίγραφα ασφαλείας</h3><div class="card" style="font-size:14px">${SET.lastBackup?'Τελευταίο αντίγραφο: '+dt(SET.lastBackup):'Δεν έχει γίνει αντίγραφο ακόμα.'}<br>Τα δεδομένα αποθηκεύονται μόνο σε αυτή τη συσκευή και αυτόν τον browser. Αν χαθούν ή διαγραφούν χωρίς αντίγραφο, δεν ανακτώνται.</div>
  <div class="btns"><button onclick="exportDB()">⬇️ Δημιουργία αντιγράφου</button><button class="s" onclick="$('#imp').click()">⬆️ Επαναφορά</button></div><input id="imp" type="file" accept=".json" hidden onchange="importDB(this.files[0])">
@@ -304,10 +304,10 @@ async function doCopy(t){try{await navigator.clipboard.writeText(t);alert('Η λ
  catch{const b=$('#cpbox');if(b){b.innerHTML=`<label>Κράτησε πατημένο στο κείμενο → Επιλογή όλων → Αντιγραφή</label><textarea id="cpt" rows="10" readonly>${esc(t)}</textarea>`;$('#cpt').select()}}}
 function doFile(t,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}
 const EXPL=()=>{const L=EXPF();if(!L.length){alert('Δεν υπάρχει ποσότητα προς παραγγελία.');return null}return L};
-async function expCopy(){const L=EXPL();if(L)await doCopy(orderText(L))}
-async function expShare(){const L=EXPL();if(!L)return;const t=orderText(L);if(navigator.share){try{await navigator.share({title:'Παραγγελία υλικών',text:t})}catch{}}else await doCopy(t)}
-function expTxt(){const L=EXPL();if(L)doFile(orderText(L),'paraggelia-'+new Date().toISOString().slice(0,10)+'.txt','text/plain;charset=utf-8')}
-function expCsv(){const L=EXPL();if(L)doFile(orderCsv(L),'paraggelia-'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8')}
+async function expCopy(){const L=EXPL();if(L){await doCopy(orderText(L));await autoOrd(L)}}
+async function expShare(){const L=EXPL();if(!L)return;const t=orderText(L);let ok=true;if(navigator.share){try{await navigator.share({title:'Παραγγελία υλικών',text:t})}catch{ok=false}}else await doCopy(t);if(ok)await autoOrd(L)}
+async function expTxt(){const L=EXPL();if(L){doFile(orderText(L),'paraggelia-'+new Date().toISOString().slice(0,10)+'.txt','text/plain;charset=utf-8');await autoOrd(L)}}
+async function expCsv(){const L=EXPL();if(L){doFile(orderCsv(L),'paraggelia-'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');await autoOrd(L)}}
 /* μοντέλο παραγγελίας: γραμμές + παραλαβές με μοναδικό αναγνωριστικό + ιστορικό */
 const normO=o=>{if(!o.receipts){o.receipts=[];o.lines.forEach(l=>{l.r0=l.r||0})}if(!o.log)o.log=[{t:o.date,e:'Καταχωρίστηκε η παραγγελία'}];return o};
 const recalcO=o=>{o.lines.forEach((l,i)=>{l.r=+((l.r0||0)+o.receipts.filter(r=>!r.rev).reduce((t,r)=>t+(+r.l[i]||0),0)).toFixed(4)});if(o.status!='cancelled')o.status=o.lines.every(l=>l.r>=l.q)?'received':o.lines.some(l=>l.r>0)?'partial':'ordered'};
@@ -315,10 +315,15 @@ function idbTx(names,fn){return new Promise(async res=>{const d=await db(),t=d.t
  t.oncomplete=()=>res(out);t.onabort=()=>res(out.err||out.dup?out:{err:'Η ενέργεια ακυρώθηκε. Δεν έγινε καμία αλλαγή.'});
  const g=(n,k)=>new Promise(r=>{const q=S[n].get(k);q.onsuccess=()=>r(q.result)}),stop=o=>{out=o;try{t.abort()}catch{}};
  try{await fn({g,p:(n,o)=>S[n].put(o),stop})}catch(e){stop({err:'Σφάλμα: '+e.message})}})}
+let LASTSIG='';
+async function mkOrder(L){const n=(await all('orders')).reduce((t,o)=>Math.max(t,o.no),0)+1,t=Date.now();
+ await put('orders',{id:uid(),no:n,date:t,status:'ordered',lines:L.map(l=>({mid:l.mid,c:l.c||'',d:l.d,u:l.u,q:l.q,r:0,r0:0})),receipts:[],log:[{t,e:'Καταχωρίστηκε η παραγγελία'}]});ORD={q:{}};BQ={};return n}
 async function placeOrder(L){if(!L.length)return alert('Δεν υπάρχει ποσότητα παραγγελίας.');
  if(!confirm('Να καταχωριστεί η παραγγελία με '+L.length+' υλικά;\nΤο απόθεμα ΔΕΝ αλλάζει μέχρι να δηλώσεις παραλαβή.'))return;
- const n=(await all('orders')).reduce((t,o)=>Math.max(t,o.no),0)+1,t=Date.now();
- await put('orders',{id:uid(),no:n,date:t,status:'ordered',lines:L.map(l=>({mid:l.mid,c:l.c||'',d:l.d,u:l.u,q:l.q,r:0,r0:0})),receipts:[],log:[{t,e:'Καταχωρίστηκε η παραγγελία'}]});ORD={q:{}};BQ={};go('orders')}
+ await mkOrder(L);go('orders')}
+/* με την αποστολή/αντιγραφή/αρχείο καταχωρίζεται και η παραγγελία (μία φορά για την ίδια λίστα) */
+async function autoOrd(L){const W=L.filter(l=>l.mid);if(!W.length)return;const sig=JSON.stringify(W.map(l=>[l.mid,l.q]));
+ if(sig==LASTSIG)return;LASTSIG=sig;const n=await mkOrder(W);alert('✅ Καταχωρίστηκε η παραγγελία № '+n+'.\nΤο απόθεμα ΔΕΝ άλλαξε· θα αλλάξει όταν δηλώσεις παραλαβή.'+(W.length<L.length?'\n(Τα χειροκίνητα υλικά είναι μόνο στο κείμενο.)':''));go('orders')}
 const confirmOrd=()=>placeOrder(ordLines());
 Object.assign(VIEWS,{
 async low(){const ms=(await all('materials')).filter(isLow).sort(by('d')),P=await pendMap();
@@ -431,7 +436,7 @@ function fltStock(v){const L=$('#list');if(!L)return;const qs=toks(v);
  const n=$('#nores');if(n)n.hidden=sc.some(x=>x[1])}
 Object.assign(VIEWS,{
 async stock(){const l=(await all('materials')).sort(by('d'));SIX=l.map(mIx);
- return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button><button class="s" onclick="go('imp')">📥 Εισαγωγή τιμών</button><button class="s" onclick="go('low')">⚠️ Χαμηλά αποθέματα</button><button class="s" onclick="go('orders')">📋 Παραγγελίες</button></div>${search('fltStock')}<div id="list">${l.map(mrow).join('')}</div><p id="nores" hidden>Δεν βρέθηκε υλικό. Δοκίμασε μέρος του ονόματος, τον κωδικό ή μια λέξη-κλειδί.</p>${l.length?'':'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}<button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
+ return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button><button class="s" onclick="go('purch')">🧾 Καταχώρηση αγοράς (τιμολόγιο)</button><button class="s" onclick="go('imp')">📥 Εισαγωγή τιμών</button><button class="s" onclick="go('low')">⚠️ Χαμηλά αποθέματα</button><button class="s" onclick="go('orders')">📋 Παραγγελίες</button></div>${search('fltStock')}<div id="list">${l.map(mrow).join('')}</div><p id="nores" hidden>Δεν βρέθηκε υλικό. Δοκίμασε μέρος του ονόματος, τον κωδικό ή μια λέξη-κλειδί.</p>${l.length?'':'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}<button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
 async stockC(id){const m=(id&&await get('materials',id))||{unit:'τεμ',qty:'0'};const mv=(await all('moves')).filter(x=>x.mid==id).sort((a,b)=>b.date-a.date).slice(0,15);
  return `<h2>${m.d?esc(m.d):'Νέο υλικό'}</h2><div id="f">${F([['code','Κωδικός'],['d','Περιγραφή (αυτή εμφανίζεται σε παραγγελίες) *'],['cat','Κατηγορία'],['sub','Υποκατηγορία'],['kw','Λέξεις-κλειδιά για να το βρίσκω γρήγορα (μόνο για σένα, δεν εμφανίζονται ποτέ σε παραγγελία ή προσφορά)'],['unit','Μονάδα','sel',UNITS.map(u=>[u,u])],['mpu','Μέτρα ανά κουλούρα/ρολό (μόνο για καλώδια, π.χ. 100)','n'],['qty','Διαθέσιμη ποσότητα','n'],['min','Ελάχιστο απόθεμα','n'],['price','Τιμή αγοράς χωρίς ΦΠΑ (€ ανά μονάδα)','n'],['supplier','Προμηθευτής'],['src','Σύνδεσμος πηγής τιμής (προαιρετικό)']],m)}</div>${m.priceDate?`<small>Τιμή ενημερώθηκε: ${dt(m.priceDate)}</small>`:''}
  <div class="btns"><button onclick="saveMat('${id}')">Αποθήκευση</button><button class="s" onclick="go('stock')">Πίσω</button>${id?`<button class="d" onclick="remove('materials','${id}','stock','Διαγραφή υλικού; Οι παλιές προσφορές και το ιστορικό κινήσεων διατηρούνται.')">Διαγραφή</button>`:''}</div>
@@ -536,6 +541,61 @@ async function impDo(){for(const x of IMP){const t=Date.now();let m=x.ex;
   if(m){if(num(m.price)!=x.price){m.hist=(m.hist||[]).concat({t,p:x.price});m.priceDate=t}m.price=String(x.price);if(x.sup)m.supplier=x.sup}
   else m={id:uid(),d:x.d,unit:x.u,qty:'0',min:'',price:String(x.price),cat:'',code:x.code,supplier:x.sup,priceDate:t,hist:[{t,p:x.price}]};
   await put('materials',m)}alert('Οι τιμές καταχωρίστηκαν.');go('stock')}
+
+/* ---------- Αγορά από τιμολόγιο (χωρίς παραγγελία) ---------- */
+let PU={items:[],sup:'',ref:'',upd:true,MIX:[],M:{}},PBUSY=false,PTXT='';
+VIEWS.purch=async()=>`<h2>🧾 Καταχώρηση αγοράς (τιμολόγιο)</h2>
+<div class="card" style="font-size:14px"><b>Πώς γίνεται:</b><br>1) Βγάλε φωτογραφία το τιμολόγιο.<br>2) Στείλ' τη στο Claude στη συνομιλία και γράψε: «γράψε μου το τιμολόγιο σε γραμμές για την εφαρμογή».<br>3) Θα σου δώσει γραμμές της μορφής:<br><b>Κωδικός | Περιγραφή | Ποσότητα | Μονάδα | Τιμή μονάδας χωρίς ΦΠΑ</b><br>4) Αντίγραψέ τες και επικόλλησέ τες εδώ. Θα ελέγξεις τα πάντα πριν μπουν στην αποθήκη.</div>
+<label>Προμηθευτής / κατάστημα</label><input id="psup" value="${esc(PU.sup)}"><label>Αριθμός τιμολογίου (προαιρετικό)</label><input id="pref" value="${esc(PU.ref)}">
+<label>Γραμμές τιμολογίου</label><textarea id="ptx" rows="10" placeholder="ABB16 | Αυτόματος 16A | 4 | τεμ | 5,20">${esc(PTXT)}</textarea>
+<div class="btns"><button onclick="purchPrev()">Έλεγχος γραμμών</button><button class="s" onclick="go('stock')">Πίσω</button></div>`;
+const pf=(x,m)=>{if(isMeter(x.u)&&!isMeter(m.unit)){return num(m.mpu)>0?1/num(m.mpu):null}return 1};
+async function purchPrev(){PTXT=$('#ptx').value;PU.sup=$('#psup').value.trim();PU.ref=$('#pref').value.trim();
+ const ms=await all('materials');PU.M=Object.fromEntries(ms.map(m=>[m.id,m]));PU.MIX=ms.map(mIx);PU.items=[];
+ PTXT.split('\n').forEach(l=>{l=l.replace(/^[\s*\-•]+/,'');const p=l.split(/\||;|\t/).map(s=>s.trim());if(p.length<4)return;
+  let c='',d,q,u,pr;if(p.length>=5){[c,d,q,u,pr]=p}else{[d,q,u,pr]=p}
+  c=c.replace(/^Κωδικός:\s*/i,'');if(!d||!(num(q)>0)||/^περιγραφ/i.test(d))return;
+  const x={c,d,q:String(num(q)),u:u||'τεμ',p:String(num(pr)),mid:null,cands:[],act:'',warn:''};
+  const ex=c&&ms.find(m=>m.code&&norm(m.code)==norm(c));
+  if(ex)x.mid=ex.id;else{const R=rankMats({d:(c+' '+d)},PU.MIX);if(R.conf=='sure'&&R.best)x.mid=R.best.id;else x.cands=R.cands}
+  PU.items.push(x)});
+ if(!PU.items.length)return alert('Δεν βρήκα έγκυρες γραμμές. Χρειάζονται τουλάχιστον: Περιγραφή | Ποσότητα | Μονάδα | Τιμή.');
+ go('purchR')}
+const pcs=(x)=>{if(x.act=='skip')return{ok:true,t:'⏭️ Παράλειψη (δεν μπαίνει)'};if(x.act=='new')return{ok:true,t:'🆕 Θα δημιουργηθεί νέο υλικό στην αποθήκη'};
+ if(x.mid){const m=PU.M[x.mid],f=pf(x,m);if(f==null)return{ok:false,t:'⚠️ Η αγορά είναι σε μέτρα αλλά το «'+m.d+'» μετριέται σε «'+m.unit+'». Όρισε στο υλικό «Μέτρα ανά κουλούρα/ρολό» ή διάλεξε άλλη ενέργεια.'};
+  return{ok:true,t:'✅ Αποθήκη: '+m.d+' (έχεις '+num(m.qty)+' '+m.unit+' → θα γίνουν '+(+(num(m.qty)+num(x.q)*f).toFixed(4))+')'}}
+ return{ok:false,t:'⚠️ Δεν αντιστοιχίστηκε. Διάλεξε υλικό, δημιούργησε νέο ή παράλειψε.'}};
+VIEWS.purchR=async()=>{const st=PU.items.map(pcs);const bad=st.filter(s=>!s.ok).length;let tot=0;PU.items.forEach(x=>{if(x.act!='skip')tot+=num(x.q)*num(x.p)});
+ return `<h2>Έλεγχος αγοράς</h2><small>${esc(PU.sup||'')} ${PU.ref?'· Τιμολόγιο '+esc(PU.ref):''}</small>
+${PU.items.map((x,i)=>`<div class="mr ${st[i].ok?'':'unk'}" id="pi${i}"><b>${esc(x.d)}</b>${x.c?` <small>(${esc(x.c)})</small>`:''}<br><small>${st[i].t}</small>
+${!x.mid&&x.act!='new'&&x.act!='skip'&&x.cands.length?`<div class="chips">${x.cands.map(id=>`<button class="s sm" onclick="pcLink(${i},'${id}')">Μήπως: ${esc(PU.M[id].d)}</button>`).join('')}</div>`:''}
+<div class="g" style="grid-template-columns:1fr 1fr"><div><small>Ποσότητα (${esc(x.u)})</small><input inputmode="decimal" value="${esc(x.q)}" oninput="PU.items[${i}].q=this.value"></div><div><small>Τιμή μονάδας χωρίς ΦΠΑ</small><input inputmode="decimal" value="${esc(x.p)}" oninput="PU.items[${i}].p=this.value"></div></div>
+<div class="btns"><button class="s sm" onclick="pcAct(${i},'new')">🆕 Νέο υλικό</button><button class="s sm" onclick="pcAct(${i},'skip')">⏭️ Παράλειψη</button>${x.mid||x.act?`<button class="s sm" onclick="pcAct(${i},'')">↩️ Ξανά</button>`:''}</div>
+<input type="search" placeholder="🔎 Αναζήτηση στην αποθήκη" oninput="pcSearch(${i},this.value)"><div id="pcr${i}"></div></div>`).join('')}
+<div class="card"><b>Σύνολο αγοράς (χωρίς ΦΠΑ): ${eur(rnd(tot*100))}</b><br><label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="pupd" ${PU.upd?'checked':''} onchange="PU.upd=this.checked" style="width:auto"> Ενημέρωση τιμής αγοράς των υλικών</label></div>
+${bad?`<div class="warnb">Υπάρχουν ${bad} γραμμές που θέλουν επιλογή.</div>`:''}
+<div class="btns"><button id="pbtn" onclick="purchOK()">✔️ Καταχώρηση – μπαίνουν στην αποθήκη</button><button class="s" onclick="go('purch')">Πίσω</button></div>`};
+function pcAct(i,a){const x=PU.items[i];x.act=a;if(a=='new'||a=='skip')x.mid=null;if(a==''){x.mid=null}go('purchR')}
+function pcLink(i,id){const x=PU.items[i];x.mid=id;x.act='';go('purchR')}
+function pcSearch(i,v){const qs=toks(v),el=$('#pcr'+i);if(!el)return;if(!qs.length){el.innerHTML='';return}
+ const r=PU.MIX.map(ix=>[ix,searchScore(qs,ix)]).filter(x=>x[1]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+ el.innerHTML=r.map(([ix])=>`<div class="row" onclick="pcLink(${i},'${ix.m.id}')"><div><b>${esc(ix.m.d)}</b><small>${esc([ix.m.code,ix.m.cat,ix.m.sub].filter(Boolean).join(' · '))}</small></div><span>${num(ix.m.qty)} ${esc(ix.m.unit)}</span></div>`).join('')||'<small>Δεν βρέθηκε. Πάτα «Νέο υλικό».</small>'}
+async function purchOK(){if(PBUSY)return;const I=PU.items;
+ for(let i=0;i<I.length;i++){const s=pcs(I[i]);if(!s.ok)return alert('Η γραμμή «'+I[i].d+'» θέλει επιλογή (υλικό, νέο ή παράλειψη).');
+  if(I[i].act!='skip'&&!(num(I[i].q)>0))return alert('Η ποσότητα στη γραμμή «'+I[i].d+'» πρέπει να είναι μεγαλύτερη από 0.')}
+ const act=I.filter(x=>x.act!='skip');if(!act.length)return alert('Όλες οι γραμμές παραλείπονται.');
+ if(!confirm('Να καταχωριστούν '+act.length+' γραμμές στην αποθήκη;'))return;
+ PBUSY=true;const b=$('#pbtn');if(b)b.disabled=true;const upd=$('#pupd')?.checked,note='Αγορά – '+(PU.ref?'τιμολόγιο '+PU.ref:(PU.sup||'χωρίς παραγγελία'));
+ try{const r=await idbTx(['materials','moves'],async({g,p,stop})=>{const t=Date.now(),seen={};
+  for(const x of act){const q=num(x.q),pr=num(x.p);let m,f=1;
+   if(x.mid){m=seen[x.mid]||await g('materials',x.mid);if(!m)return stop({err:'Το υλικό «'+x.d+'» δεν υπάρχει πια. Δεν έγινε καμία αλλαγή.'});f=pf(x,m);if(f==null)return stop({err:'Πρόβλημα μονάδας στο «'+x.d+'». Δεν έγινε καμία αλλαγή.'});
+    m.qty=String(+(num(m.qty)+q*f).toFixed(4));if(PU.sup&&!m.supplier)m.supplier=PU.sup;
+    if(upd&&pr>0){const np=+(pr/f).toFixed(4);if(np!=num(m.price)){m.hist=(m.hist||[]).concat({t,p:np});m.priceDate=t;m.price=String(np)}}}
+   else{m={id:uid(),code:x.c,d:x.d,unit:x.u,qty:String(q),min:'',price:pr>0?String(pr):'',cat:'',sub:'',kw:'',supplier:PU.sup,priceDate:t,hist:pr>0?[{t,p:pr}]:[]}}
+   seen[m.id]=m;p('materials',m);p('moves',{id:uid(),mid:m.id,date:t,delta:q*f,note})}});
+  if(r.err){alert(r.err);PBUSY=false;return go('purchR')}
+  PBUSY=false;PU={items:[],sup:'',ref:'',upd:true,MIX:[],M:{}};PTXT='';alert('Η αγορά καταχωρίστηκε και η αποθήκη ενημερώθηκε.');go('stock')}
+ catch(e){PBUSY=false;alert('Σφάλμα: '+e.message)}}
 
 /* ---------- Εκκίνηση ---------- */
 (async()=>{

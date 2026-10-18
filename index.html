@@ -39,7 +39,7 @@ button.s{background:#fff;color:var(--navy);border:1px solid var(--navy)}button.d
 #sheet{transform-origin:top left}
 .okb{background:#d4edda;border-radius:8px;padding:8px;font-size:13px;margin:6px 0}.warnb{background:#fff3cd;border-radius:8px;padding:8px;font-size:13px;margin:6px 0}.redb{background:#fdecea;border:1px solid #c53030;border-radius:8px;padding:8px;font-size:13px;margin:6px 0}.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.mr.unk{border-color:#c53030}
 [hidden]{display:none!important}
-.grp{margin:0 0 10px}.grp>summary{cursor:pointer;padding:12px 14px;background:var(--c,#fff);border-radius:12px;font-size:16px;list-style:none;box-shadow:0 1px 2px rgba(0,0,0,.08);margin-bottom:6px}.grp>summary::-webkit-details-marker{display:none}.grp>summary::before{content:'▸ ';}.grp[open]>summary::before{content:'▾ ';}.lowb{color:#c0392b;font-weight:600;font-size:13px}
+.grp{margin:0 0 10px}.grp>summary{cursor:pointer;padding:12px 14px;background:var(--c,#fff);border-radius:12px;font-size:16px;list-style:none;box-shadow:0 1px 2px rgba(0,0,0,.08);margin-bottom:6px}.grp>summary::-webkit-details-marker{display:none}.grp>summary::before{content:'▸ ';}.grp[open]>summary::before{content:'▾ ';}.grp.sub{margin:0 0 6px 14px}.grp.sub>summary{font-size:15px;background:#f6f8fa}.lowb{color:#c0392b;font-weight:600;font-size:13px}
 .sw{position:relative;overflow:hidden;border-radius:10px;margin-bottom:8px}.sw .row{margin:0}
 .swbg{position:absolute;left:0;top:0;bottom:0;width:90px;background:#c53030;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px}
 .swfg{position:relative;touch-action:pan-y;transition:transform .2s;user-select:none;-webkit-user-select:none}
@@ -165,7 +165,7 @@ async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m])
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
-async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 4.8</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['phone','Τηλέφωνο'],['email','Email'],['web','Ιστοσελίδα'],['nextNo','Επόμενος αριθμός προσφοράς','n'],['validDays','Ισχύς προσφοράς (ημέρες)','n'],['vat','Προεπιλεγμένος ΦΠΑ %','n'],['markup','Προεπιλεγμένο κέρδος υλικών %','n'],['clar','Προεπιλεγμένες διευκρινίσεις (μία ανά γραμμή, «Τίτλος: κείμενο»)','area']],SET)}</div>
+async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 4.9</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['phone','Τηλέφωνο'],['email','Email'],['web','Ιστοσελίδα'],['nextNo','Επόμενος αριθμός προσφοράς','n'],['validDays','Ισχύς προσφοράς (ημέρες)','n'],['vat','Προεπιλεγμένος ΦΠΑ %','n'],['markup','Προεπιλεγμένο κέρδος υλικών %','n'],['clar','Προεπιλεγμένες διευκρινίσεις (μία ανά γραμμή, «Τίτλος: κείμενο»)','area']],SET)}</div>
  <div class="btns"><button onclick="saveSettings()">Αποθήκευση ρυθμίσεων</button></div>
  <h3>Αντίγραφα ασφαλείας</h3><div class="card" style="font-size:14px">${SET.lastBackup?'Τελευταίο αντίγραφο: '+dt(SET.lastBackup):'Δεν έχει γίνει αντίγραφο ακόμα.'}<br>Τα δεδομένα αποθηκεύονται μόνο σε αυτή τη συσκευή και αυτόν τον browser. Αν χαθούν ή διαγραφούν χωρίς αντίγραφο, δεν ανακτώνται.</div>
  <div class="btns"><button onclick="exportDB()">⬇️ Δημιουργία αντιγράφου</button><button class="s" onclick="$('#imp').click()">⬆️ Επαναφορά</button></div><input id="imp" type="file" accept=".json" hidden onchange="importDB(this.files[0])">
@@ -443,12 +443,12 @@ function fltStock(v){STQ=v||'';const G=$('#grp'),L=$('#list');if(!G||!L)return;c
 Object.assign(VIEWS,{
 async stock(){const l=(await all('materials')).sort(by('d'));SIX=l.map(mIx);
  const gr={};l.forEach(m=>{const k=(m.cat||'').trim()||NOCAT;(gr[k]=gr[k]||[]).push(m)});
- const CT=await loadCats();CT.forEach(c=>{gr[c]=gr[c]||[]});const ks=[...CT,...Object.keys(gr).filter(k=>!CT.includes(k)&&k!=NOCAT).sort((a,b)=>a.localeCompare(b,'el')),...(gr[NOCAT]?[NOCAT]:[])];
- const grp=ks.map(k=>{const low=gr[k].filter(isLow).length;return `<details class="grp" data-g="${esc(k)}" ${STO.has(k)?'open':''} ontoggle="togG(this)"><summary><b>${esc(k)}</b> <small>(${gr[k].length})</small>${low?` <span class="lowb">⚠️ ${low}</span>`:''}</summary>${gr[k].map(mrow).join('')}</details>`}).join('');
+ const CT=await loadCats(),SB=await loadSubs();CT.forEach(c=>{gr[c]=gr[c]||[]});const ks=[...CT,...Object.keys(gr).filter(k=>!CT.includes(k)&&k!=NOCAT).sort((a,b)=>a.localeCompare(b,'el')),...(gr[NOCAT]?[NOCAT]:[])];
+ const grp=ks.map(k=>{const low=gr[k].filter(isLow).length;return `<details class="grp" data-g="${esc(k)}" ${STO.has(k)?'open':''} ontoggle="togG(this)"><summary><b>${esc(k)}</b> <small>(${gr[k].length})</small>${low?` <span class="lowb">⚠️ ${low}</span>`:''}</summary>${subHTML(k,gr[k],SB[k]||[])}</details>`}).join('');
  setTimeout(()=>{const i=$('#m input[type=search]');if(i&&STQ){i.value=STQ;fltStock(STQ)}},0);
  return `<h2>Αποθήκη</h2><div class="btns" style="margin:0 0 10px"><button class="s" onclick="go('buy')">🛒 Υλικά προς αγορά</button><button class="s" onclick="go('purch')">🧾 Καταχώρηση αγοράς (τιμολόγιο)</button><button class="s" onclick="go('imp')">📥 Εισαγωγή τιμών</button><button class="s" onclick="go('low')">⚠️ Χαμηλά αποθέματα</button><button class="s" onclick="go('orders')">📋 Παραγγελίες</button><button class="s" onclick="go('cats')">🗂 Κατηγορίες</button></div>${search('fltStock')}<div id="grp">${grp}</div><div id="list" hidden></div><p id="nores" hidden>Δεν βρέθηκε υλικό. Δοκίμασε μέρος του ονόματος, τον κωδικό ή μια λέξη-κλειδί.</p>${l.length?'':'<p>Η αποθήκη είναι άδεια. Πρόσθεσε το πρώτο υλικό.</p>'}<button class="fab" onclick="go('stockC','')">+ Νέο υλικό</button>`},
-async stockC(id){const m=(id&&await get('materials',id))||{unit:'τεμ',qty:'0'};const cats=await loadCats(),cur=(m.cat||'').trim(),CATOPT=[['','— Χωρίς κατηγορία —'],...cats.map(c=>[c,c]),...(cur&&!cats.includes(cur)?[[cur,cur]]:[]),['__new','➕ Νέα κατηγορία…']];const mv=(await all('moves')).filter(x=>x.mid==id).sort((a,b)=>b.date-a.date).slice(0,15);
- return `<h2>${m.d?esc(m.d):'Νέο υλικό'}</h2><div id="f">${F([['code','Κωδικός'],['d','Περιγραφή (αυτή εμφανίζεται σε παραγγελίες) *'],['cat','Κατηγορία','sel',CATOPT],['sub','Υποκατηγορία'],['kw','Λέξεις-κλειδιά για να το βρίσκω γρήγορα (μόνο για σένα, δεν εμφανίζονται ποτέ σε παραγγελία ή προσφορά)'],['unit','Μονάδα','sel',UNITS.map(u=>[u,u])],['mpu','Μέτρα ανά κουλούρα/ρολό (μόνο για καλώδια, π.χ. 100)','n'],['qty','Διαθέσιμη ποσότητα','n'],['min','Ελάχιστο απόθεμα','n'],['price','Τιμή αγοράς χωρίς ΦΠΑ (€ ανά μονάδα)','n'],['supplier','Προμηθευτής'],['src','Σύνδεσμος πηγής τιμής (προαιρετικό)']],m)}</div>${m.priceDate?`<small>Τιμή ενημερώθηκε: ${dt(m.priceDate)}</small>`:''}
+async stockC(id){const m=(id&&await get('materials',id))||{unit:'τεμ',qty:'0'};const cats=await loadCats(),SBM=await loadSubs(),cur=(m.cat||'').trim(),cs=(m.sub||'').trim(),SUBOPT=subOpts(SBM[cur]||[],cs),CATOPT=[['','— Χωρίς κατηγορία —'],...cats.map(c=>[c,c]),...(cur&&!cats.includes(cur)?[[cur,cur]]:[]),['__new','➕ Νέα κατηγορία…']];const mv=(await all('moves')).filter(x=>x.mid==id).sort((a,b)=>b.date-a.date).slice(0,15);
+ return `<h2>${m.d?esc(m.d):'Νέο υλικό'}</h2><div id="f">${F([['code','Κωδικός'],['d','Περιγραφή (αυτή εμφανίζεται σε παραγγελίες) *'],['cat','Κατηγορία','sel',CATOPT],['sub','Υποκατηγορία (π.χ. μάρκα)','sel',SUBOPT],['kw','Λέξεις-κλειδιά για να το βρίσκω γρήγορα (μόνο για σένα, δεν εμφανίζονται ποτέ σε παραγγελία ή προσφορά)'],['unit','Μονάδα','sel',UNITS.map(u=>[u,u])],['mpu','Μέτρα ανά κουλούρα/ρολό (μόνο για καλώδια, π.χ. 100)','n'],['qty','Διαθέσιμη ποσότητα','n'],['min','Ελάχιστο απόθεμα','n'],['price','Τιμή αγοράς χωρίς ΦΠΑ (€ ανά μονάδα)','n'],['supplier','Προμηθευτής'],['src','Σύνδεσμος πηγής τιμής (προαιρετικό)']],m)}</div>${m.priceDate?`<small>Τιμή ενημερώθηκε: ${dt(m.priceDate)}</small>`:''}
  <div class="btns"><button onclick="saveMat('${id}')">Αποθήκευση</button><button class="s" onclick="go('stock')">Πίσω</button>${id?`<button class="d" onclick="remove('materials','${id}','stock','Διαγραφή υλικού; Οι παλιές προσφορές και το ιστορικό κινήσεων διατηρούνται.')">Διαγραφή</button>`:''}</div>
  ${id?`<h3>Ιστορικό κινήσεων</h3>${mv.map(x=>row('',x.note,dt(x.date),(x.delta>0?'+':'')+x.delta)).join('')||'<small>Καμία</small>'}${(m.hist||[]).length?`<h3>Ιστορικό τιμών</h3>${m.hist.slice(-8).reverse().map(h=>row('',eur(rnd(h.p*100)),dt(h.t),'')).join('')}`:''}`:''}`}});
 /* ---------- Μετατροπή μονάδων (μέτρα ⇄ κουλούρες) ---------- */
@@ -610,25 +610,51 @@ async function purchOK(){if(PBUSY)return;const I=PU.items;
 async function refreshApp(){try{(await navigator.serviceWorker?.getRegistrations?.()||[]).forEach(r=>r.unregister());(await caches.keys()).forEach(k=>caches.delete(k))}catch{}alert('Θα φορτωθεί η τελευταία έκδοση. Τα δεδομένα σου δεν επηρεάζονται.');location.reload()}
 /* ---------- Κατηγορίες υλικών ---------- */
 const DEFCATS=['Καλώδια και αγωγοί','Σωλήνες και κανάλια','Κουτιά και στηρίξεις','Διακόπτες και πρίζες','Πίνακες και προστασίες','Φωτισμός','Αισθητήρες και αυτοματισμοί','Εργαλεία και αναλώσιμα','Λοιπά'];
+let SUBC={};
 async function loadCats(){const k=await get('kv','cats');return Array.isArray(k?.v)?k.v:DEFCATS.slice()}
 const saveCats=a=>put('kv',{id:'cats',v:a});
 document.addEventListener('change',async e=>{const t=e.target;if(t.name=='cat'&&t.value=='__new'){const n=(prompt('Όνομα νέας κατηγορίας:')||'').trim();
  if(!n){t.value='';return}const c=await loadCats();if(!c.includes(n)){c.push(n);await saveCats(c)}
  if(![...t.options].some(o=>o.value==n)){t.insertBefore(new Option(n,n),t.querySelector('[value="__new"]'))}t.value=n}});
-VIEWS.cats=async()=>{const c=await loadCats(),ms=await all('materials'),cnt=k=>ms.filter(m=>(m.cat||'').trim()==k).length,extra=[...new Set(ms.map(m=>(m.cat||'').trim()).filter(x=>x&&!c.includes(x)))];
- return `<h2>🗂 Κατηγορίες υλικών</h2><div class="card" style="font-size:14px">Εδώ φτιάχνεις τη λίστα με τις κατηγορίες της αποθήκης. Σε κάθε υλικό διαλέγεις μία. Η μετονομασία αλλάζει όλα τα υλικά της κατηγορίας. Αν σβήσεις μια κατηγορία, τα υλικά της δεν χάνονται· πάνε στο «Χωρίς κατηγορία».</div>
- ${c.map((k,i)=>`<div class="row"><div><b>${esc(k)}</b><small>${cnt(k)} υλικά</small></div><span><button class="s sm" onclick="catMove(${i},-1)">▲</button> <button class="s sm" onclick="catMove(${i},1)">▼</button> <button class="s sm" onclick="catRen(${i})">✏️</button> <button class="d sm" onclick="catDel(${i})">🗑</button></span></div>`).join('')}
+VIEWS.cats=async()=>{const SB=await loadSubs(),c=await loadCats(),ms=await all('materials'),cnt=k=>ms.filter(m=>(m.cat||'').trim()==k).length,extra=[...new Set(ms.map(m=>(m.cat||'').trim()).filter(x=>x&&!c.includes(x)))];
+ return `<h2>🗂 Κατηγορίες υλικών</h2><div class="card" style="font-size:14px">Εδώ φτιάχνεις τη λίστα με τις κατηγορίες της αποθήκης. Σε κάθε υλικό διαλέγεις μία. Η μετονομασία αλλάζει όλα τα υλικά της κατηγορίας. Κάθε κατηγορία έχει υποκατηγορίες (π.χ. μάρκες). Αν σβήσεις μια κατηγορία, τα υλικά της δεν χάνονται· πάνε στο «Χωρίς κατηγορία».</div>
+ ${c.map((k,i)=>`<div class="row"><div><b>${esc(k)}</b><small>${cnt(k)} υλικά</small></div><span><button class="s sm" onclick="catMove(${i},-1)">▲</button> <button class="s sm" onclick="catMove(${i},1)">▼</button> <button class="s sm" onclick="catRen(${i})">✏️</button> <button class="d sm" onclick="catDel(${i})">🗑</button></span></div>${(SB[k]||[]).map((x,j)=>`<div class="row" style="margin-left:22px"><div>↳ ${esc(x)}<small>${ms.filter(m=>(m.cat||'').trim()==k&&(m.sub||'').trim()==x).length} υλικά</small></div><span><button class="s sm" onclick="subMove(${i},${j},-1)">▲</button> <button class="s sm" onclick="subMove(${i},${j},1)">▼</button> <button class="s sm" onclick="subRen(${i},${j})">✏️</button> <button class="d sm" onclick="subDel(${i},${j})">🗑</button></span></div>`).join('')}<div style="margin:0 0 10px 22px"><button class="s sm" onclick="subAdd(${i})">➕ Υποκατηγορία (μάρκα) στην «${esc(k)}»</button></div>`).join('')}
  ${extra.length?`<h3>Κατηγορίες που χρησιμοποιούν υλικά αλλά δεν είναι στη λίστα</h3>${extra.map(k=>`<div class="row"><div><b>${esc(k)}</b><small>${cnt(k)} υλικά</small></div><span><button class="s sm" onclick="catAddX(this.dataset.k)" data-k="${esc(k)}">➕ Στη λίστα</button></span></div>`).join('')}`:''}
  <label>Νέα κατηγορία</label><input id="cnew" placeholder="π.χ. Ασφάλειες"><div class="btns"><button onclick="catAdd()">Προσθήκη</button><button class="s" onclick="go('stock')">Πίσω</button></div>`};
 async function catAdd(){const n=($('#cnew').value||'').trim();if(!n)return;const c=await loadCats();if(c.includes(n))return alert('Υπάρχει ήδη.');c.push(n);await saveCats(c);go('cats')}
 async function catAddX(k){const c=await loadCats();if(!c.includes(k))c.push(k);await saveCats(c);go('cats')}
 async function catMove(i,d){const c=await loadCats(),j=i+d;if(j<0||j>=c.length)return;[c[i],c[j]]=[c[j],c[i]];await saveCats(c);go('cats')}
 async function catRen(i){const c=await loadCats(),o=c[i],n=(prompt('Νέο όνομα κατηγορίας:',o)||'').trim();if(!n||n==o)return;if(c.includes(n))return alert('Υπάρχει ήδη κατηγορία με αυτό το όνομα.');
- c[i]=n;await saveCats(c);for(const m of await all('materials'))if((m.cat||'').trim()==o){m.cat=n;await put('materials',m)}
+ c[i]=n;await saveCats(c);{const S=await loadSubs();if(S[o]){S[n]=S[o];delete S[o];await saveSubs(S)}}for(const m of await all('materials'))if((m.cat||'').trim()==o){m.cat=n;await put('materials',m)}
  if(STO.has(o)){STO.delete(o);STO.add(n);stoSave()}go('cats')}
 async function catDel(i){const c=await loadCats(),o=c[i],ms=(await all('materials')).filter(m=>(m.cat||'').trim()==o);
  if(!confirm('Να σβηστεί η κατηγορία «'+o+'»;'+(ms.length?'\nΤα '+ms.length+' υλικά της δεν σβήνονται· θα μπουν στο «Χωρίς κατηγορία».':'')))return;
- c.splice(i,1);await saveCats(c);for(const m of ms){m.cat='';await put('materials',m)}go('cats')}
+ c.splice(i,1);await saveCats(c);{const S=await loadSubs();delete S[o];await saveSubs(S)}for(const m of ms){m.cat='';m.sub='';await put('materials',m)}go('cats')}
+/* ---------- Υποκατηγορίες (π.χ. μάρκες) ---------- */
+async function loadSubs(){const k=await get('kv','subs');return k&&k.v&&typeof k.v=='object'?k.v:{}}
+const saveSubs=o=>put('kv',{id:'subs',v:o});
+const subOpts=(list,cur)=>[['','— Χωρίς υποκατηγορία —'],...list.map(x=>[x,x]),...(cur&&!list.includes(cur)?[[cur,cur]]:[]),['__newsub','➕ Νέα υποκατηγορία…']];
+function subHTML(cat,ms,list){const by={};ms.forEach(m=>{const k=(m.sub||'').trim();(by[k]=by[k]||[]).push(m)});
+ const names=[...list,...Object.keys(by).filter(k=>k&&!list.includes(k)).sort((a,b)=>a.localeCompare(b,'el'))];
+ const none=by['']||[];
+ return names.map(n=>{const a=by[n]||[],key=cat+'›'+n,low=a.filter(isLow).length;
+  return `<details class="grp sub" data-g="${esc(key)}" ${STO.has(key)?'open':''} ontoggle="togG(this)"><summary><b>${esc(n)}</b> <small>(${a.length})</small>${low?` <span class="lowb">⚠️ ${low}</span>`:''}</summary>${a.map(mrow).join('')}</details>`}).join('')+none.map(mrow).join('')}
+/* αλλαγή κατηγορίας στη φόρμα υλικού → ανανέωση λίστας υποκατηγοριών */
+document.addEventListener('change',async e=>{const t=e.target;if(t.name=='cat'&&t.value!='__new'){const sb=$('#f [name=sub]');if(!sb)return;const S=await loadSubs(),l=S[t.value]||[];
+  sb.innerHTML=subOpts(l,'').map(([v,n])=>`<option value="${esc(v)}">${esc(n)}</option>`).join('')}
+ if(t.name=='sub'&&t.value=='__newsub'){const cat=$('#f [name=cat]')?.value||'';if(!cat||cat=='__new'){alert('Διάλεξε πρώτα κατηγορία.');t.value='';return}
+  const n=(prompt('Όνομα νέας υποκατηγορίας (π.χ. μάρκα):')||'').trim();if(!n){t.value='';return}
+  const S=await loadSubs();S[cat]=S[cat]||[];if(!S[cat].includes(n)){S[cat].push(n);await saveSubs(S)}
+  if(![...t.options].some(o=>o.value==n))t.insertBefore(new Option(n,n),t.querySelector('[value="__newsub"]'));t.value=n}});
+async function subAdd(i){const c=await loadCats(),cat=c[i],n=(prompt('Νέα υποκατηγορία στην «'+cat+'» (π.χ. μάρκα):')||'').trim();if(!n)return;
+ const S=await loadSubs();S[cat]=S[cat]||[];if(S[cat].includes(n))return alert('Υπάρχει ήδη.');S[cat].push(n);await saveSubs(S);go('cats')}
+async function subRen(i,j){const c=await loadCats(),cat=c[i],S=await loadSubs(),o=(S[cat]||[])[j],n=(prompt('Νέο όνομα υποκατηγορίας:',o)||'').trim();if(!n||n==o)return;
+ if(S[cat].includes(n))return alert('Υπάρχει ήδη.');S[cat][j]=n;await saveSubs(S);for(const m of await all('materials'))if((m.cat||'').trim()==cat&&(m.sub||'').trim()==o){m.sub=n;await put('materials',m)}
+ const a=cat+'›'+o;if(STO.has(a)){STO.delete(a);STO.add(cat+'›'+n);stoSave()}go('cats')}
+async function subDel(i,j){const c=await loadCats(),cat=c[i],S=await loadSubs(),o=(S[cat]||[])[j],ms=(await all('materials')).filter(m=>(m.cat||'').trim()==cat&&(m.sub||'').trim()==o);
+ if(!confirm('Να σβηστεί η υποκατηγορία «'+o+'»;'+(ms.length?'\nΤα '+ms.length+' υλικά της μένουν στην κατηγορία «'+cat+'» χωρίς υποκατηγορία.':'')))return;
+ S[cat].splice(j,1);await saveSubs(S);for(const m of ms){m.sub='';await put('materials',m)}go('cats')}
+async function subMove(i,j,d){const c=await loadCats(),cat=c[i],S=await loadSubs(),l=S[cat]||[],k=j+d;if(k<0||k>=l.length)return;[l[j],l[k]]=[l[k],l[j]];await saveSubs(S);go('cats')}
 /* ---------- Εκκίνηση ---------- */
 (async()=>{
  SET={...DEF,...((await get('kv','set'))||{})};

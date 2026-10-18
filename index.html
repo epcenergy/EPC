@@ -163,7 +163,7 @@ async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m])
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
-async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 4.4</small><div id="f">${F([['phone','Τηλέφωνο'],['email','Email'],['web','Ιστοσελίδα'],['nextNo','Επόμενος αριθμός προσφοράς','n'],['validDays','Ισχύς προσφοράς (ημέρες)','n'],['vat','Προεπιλεγμένος ΦΠΑ %','n'],['markup','Προεπιλεγμένο κέρδος υλικών %','n'],['clar','Προεπιλεγμένες διευκρινίσεις (μία ανά γραμμή, «Τίτλος: κείμενο»)','area']],SET)}</div>
+async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 4.5</small><div id="f">${F([['phone','Τηλέφωνο'],['email','Email'],['web','Ιστοσελίδα'],['nextNo','Επόμενος αριθμός προσφοράς','n'],['validDays','Ισχύς προσφοράς (ημέρες)','n'],['vat','Προεπιλεγμένος ΦΠΑ %','n'],['markup','Προεπιλεγμένο κέρδος υλικών %','n'],['clar','Προεπιλεγμένες διευκρινίσεις (μία ανά γραμμή, «Τίτλος: κείμενο»)','area']],SET)}</div>
  <div class="btns"><button onclick="saveSettings()">Αποθήκευση ρυθμίσεων</button></div>
  <h3>Αντίγραφα ασφαλείας</h3><div class="card" style="font-size:14px">${SET.lastBackup?'Τελευταίο αντίγραφο: '+dt(SET.lastBackup):'Δεν έχει γίνει αντίγραφο ακόμα.'}<br>Τα δεδομένα αποθηκεύονται μόνο σε αυτή τη συσκευή και αυτόν τον browser. Αν χαθούν ή διαγραφούν χωρίς αντίγραφο, δεν ανακτώνται.</div>
  <div class="btns"><button onclick="exportDB()">⬇️ Δημιουργία αντιγράφου</button><button class="s" onclick="$('#imp').click()">⬆️ Επαναφορά</button></div><input id="imp" type="file" accept=".json" hidden onchange="importDB(this.files[0])">
@@ -287,7 +287,7 @@ const LK={α:'a',β:'b',ε:'e',ζ:'z',η:'h',ι:'i',κ:'k',μ:'m',ν:'n',ο:'o',
 const fold=s=>norm(s).replace(/[α-ω]/g,c=>LK[c]||c);
 const PL={'τεμ':['τεμάχιο','τεμάχια'],'μ':['μέτρο','μέτρα'],'μ καλωδίου':['μέτρο καλωδίου','μέτρα καλωδίου'],'ρολό':['ρολό','ρολά'],'κουτί':['κουτί','κουτιά'],'κουλούρα':['κουλούρα','κουλούρες'],'κιλό':['κιλό','κιλά'],'λίτρο':['λίτρο','λίτρα']};
 const pl=(u,q)=>(PL[u]||[u,u])[num(q)==1?0:1];
-const ST_O={ordered:'Παραγγέλθηκε',partial:'Μερική παραλαβή',received:'Παραλήφθηκε',cancelled:'Ακυρώθηκε'};
+const ST_O={ordered:'Παραγγέλθηκε',partial:'Μερική παραλαβή',received:'Παραλήφθηκε',closed:'Ολοκληρώθηκε με ελλείψεις',cancelled:'Ακυρώθηκε'};
 const isOpen=o=>['ordered','partial'].includes(o.status);
 const isLow=m=>num(m.min)>0&&num(m.qty)<num(m.min);
 async function pendMap(){const P={};(await all('orders')).filter(isOpen).forEach(o=>o.lines.forEach(l=>P[l.mid]=(P[l.mid]||0)+Math.max(0,l.q-l.r)));return P}
@@ -310,7 +310,7 @@ async function expTxt(){const L=EXPL();if(L){doFile(orderText(L),'paraggelia-'+n
 async function expCsv(){const L=EXPL();if(L){doFile(orderCsv(L),'paraggelia-'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');await autoOrd(L)}}
 /* μοντέλο παραγγελίας: γραμμές + παραλαβές με μοναδικό αναγνωριστικό + ιστορικό */
 const normO=o=>{if(!o.receipts){o.receipts=[];o.lines.forEach(l=>{l.r0=l.r||0})}if(!o.log)o.log=[{t:o.date,e:'Καταχωρίστηκε η παραγγελία'}];return o};
-const recalcO=o=>{o.lines.forEach((l,i)=>{l.r=+((l.r0||0)+o.receipts.filter(r=>!r.rev).reduce((t,r)=>t+(+r.l[i]||0),0)).toFixed(4)});if(o.status!='cancelled')o.status=o.lines.every(l=>l.r>=l.q)?'received':o.lines.some(l=>l.r>0)?'partial':'ordered'};
+const recalcO=o=>{o.lines.forEach((l,i)=>{l.r=+((l.r0||0)+o.receipts.filter(r=>!r.rev).reduce((t,r)=>t+(+r.l[i]||0),0)).toFixed(4)});if(o.status!='cancelled'){const full=o.lines.every(l=>l.r>=l.q);o.status=full?'received':(o.closed&&o.receipts.some(r=>!r.rev))?'closed':o.lines.some(l=>l.r>0)?'partial':'ordered'}};
 function idbTx(names,fn){return new Promise(async res=>{const d=await db(),t=d.transaction(names,'readwrite'),S=Object.fromEntries(names.map(n=>[n,t.objectStore(n)]));let out={};
  t.oncomplete=()=>res(out);t.onabort=()=>res(out.err||out.dup?out:{err:'Η ενέργεια ακυρώθηκε. Δεν έγινε καμία αλλαγή.'});
  const g=(n,k)=>new Promise(r=>{const q=S[n].get(k);q.onsuccess=()=>r(q.result)}),stop=o=>{out=o;try{t.abort()}catch{}};
@@ -337,16 +337,16 @@ async orders(){const l=(await all('orders')).sort((a,b)=>b.no-a.no);
 async orderC(id){const o=normO(await get('orders',id));OCUR=o;RRID=uid();const op=isOpen(o),mats=Object.fromEntries((await all('materials')).map(m=>[m.id,m])),code=l=>l.c??mats[l.mid]?.code??'';
  EXPF=()=>o.lines.map(l=>({c:code(l),d:l.d,u:l.u,q:l.q}));const done=o.lines.filter(l=>l.r>=l.q).length;
  return `<h2>Παραγγελία № ${o.no}</h2><p>${dt(o.date)} · <b>${ST_O[o.status]}</b> · ${done}/${o.lines.length} υλικά πλήρη</p>
- ${o.lines.map((l,i)=>{const rem=Math.max(0,+(l.q-l.r).toFixed(4)),badge=l.r>=l.q?'✅ Παραλήφθηκε πλήρως':l.r>0?'⏳ Μερική παραλαβή – εκκρεμούν '+rem:'⏳ Δεν έχει παραληφθεί';
+ ${o.lines.map((l,i)=>{const rem=Math.max(0,+(l.q-l.r).toFixed(4)),badge=l.r>=l.q?'✅ Παραλήφθηκε πλήρως':o.status=='closed'?'⚠️ Δεν παραλήφθηκαν '+rem+' – η παραγγελία έκλεισε, θα εμφανιστεί ως έλλειψη για νέα παραγγελία':l.r>0?'⏳ Μερική παραλαβή – εκκρεμούν '+rem:'⏳ Δεν έχει παραληφθεί';
   return `<div class="mr"><b>${esc(l.d)}</b>${code(l)?` <small>(${esc(code(l))})</small>`:''}<br><small>Παραγγέλθηκαν <b>${l.q}</b> ${esc(pl(l.u,l.q))} · Παρελήφθησαν <b>${l.r}</b> · Εκκρεμούν <b>${rem}</b><br>${badge}</small>${op?`<div class="g" style="grid-template-columns:1fr 1fr"><div><small>Ποσότητα παραγγελίας</small><input id="oq${i}" inputmode="decimal" value="${l.q}"></div><div><small>Παραλαβή τώρα</small><input id="or${i}" inputmode="decimal" value="${Math.max(0,+(l.q-l.r).toFixed(4))}"></div></div>`:''}</div>`}).join('')}
- ${op?`<div class="btns"><button class="s" onclick="fillRem()">Συμπλήρωση με όσα εκκρεμούν</button></div><div class="btns"><button id="rbtn" onclick="recvOrd('${id}')">📦 Τα παρέλαβα – μπαίνουν στην αποθήκη</button><button class="s" onclick="editOrd('${id}')">Αποθήκευση ποσοτήτων παραγγελίας</button><button class="d" onclick="cancelOrd('${id}')">Ακύρωση παραγγελίας</button></div><small>Η παραλαβή αυξάνει το απόθεμα μόνο με όσα γράψεις στο «Παραλαβή τώρα». Η επεξεργασία και η ακύρωση δεν αλλάζουν το απόθεμα.</small>`:''}
+ ${op?`<div class="btns"><button class="s" onclick="fillRem()">Συμπλήρωση με όσα εκκρεμούν</button></div><label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="keep" style="width:auto"> Ο προμηθευτής θα στείλει τα υπόλοιπα αργότερα (κράτα την παραγγελία ανοιχτή)</label><div class="btns"><button id="rbtn" onclick="recvOrd('${id}')">📦 Τα παρέλαβα – μπαίνουν στην αποθήκη</button><button class="s" onclick="editOrd('${id}')">Αποθήκευση ποσοτήτων παραγγελίας</button><button class="d" onclick="cancelOrd('${id}')">Ακύρωση παραγγελίας</button></div><small>Η παραλαβή αυξάνει το απόθεμα μόνο με όσα γράψεις στο «Παραλαβή τώρα». Η παραγγελία κλείνει· ό,τι δεν ήρθε εμφανίζεται ξανά ως έλλειψη. Η επεξεργασία και η ακύρωση δεν αλλάζουν το απόθεμα.</small>`:''}
  <div id="cpbox"></div>${expBar()}
  <h3>Ιστορικό παραλαβών</h3>${o.receipts.slice().reverse().map(r=>`<div class="mr"><b>Παραλαβή ${dt(r.date)}</b>${r.rev?` <span style="color:#c53030">(αναιρέθηκε ${dt(r.revDate)})</span>`:''}<br><small>${Object.entries(r.l).filter(([i,q])=>q>0).map(([i,q])=>esc(o.lines[i].d)+': +'+q).join('<br>')}</small>${r.rev?'':`<br><button class="s sm" onclick="revRcv('${o.id}','${r.id}')">↩️ Αναίρεση παραλαβής</button>`}</div>`).join('')||'<small>Καμία παραλαβή ακόμα.</small>'}
  <h3>Γεγονότα</h3>${o.log.slice().reverse().map(g=>`<small style="display:block">${dt(g.t)} · ${esc(g.e)}</small>`).join('')}
  <div class="btns"><button class="s" onclick="go('orders')">‹ Πίσω</button></div>`}});
 let OCUR=null,RRID=null,RBUSY=false;
 function fillRem(){OCUR.lines.forEach((l,i)=>{const e=$('#or'+i);if(e)e.value=Math.max(0,+(l.q-l.r).toFixed(4))})}
-async function recvOrd(id){if(RBUSY||!OCUR||OCUR.id!=id)return;const o=OCUR,N=o.lines.map((l,i)=>num($('#or'+i)?.value));
+async function recvOrd(id){if(RBUSY||!OCUR||OCUR.id!=id)return;const o=OCUR,keep=!!$('#keep')?.checked,N=o.lines.map((l,i)=>num($('#or'+i)?.value));
  if(!N.some(n=>n>0))return alert('Γράψε την ποσότητα που παρέλαβες σε τουλάχιστον ένα υλικό.');
  for(let i=0;i<N.length;i++){const rem=o.lines[i].q-o.lines[i].r;if(N[i]>rem+1e-9&&!confirm('Για «'+o.lines[i].d+'» δηλώνεις '+N[i]+' ενώ εκκρεμούν '+Math.max(0,+rem.toFixed(4))+'. Να καταχωριστεί η υπερπαραλαβή;'))return}
  RBUSY=true;const b=$('#rbtn');if(b)b.disabled=true;const rid=RRID;
@@ -357,7 +357,7 @@ async function recvOrd(id){if(RBUSY||!OCUR||OCUR.id!=id)return;const o=OCUR,N=o.
    const M={};for(let i=0;i<N.length;i++)if(N[i]>0){const m=await g('materials',o2.lines[i].mid);if(!m)return stop({err:'Το υλικό «'+o2.lines[i].d+'» δεν υπάρχει πια στην αποθήκη. Δεν έγινε καμία αλλαγή.'});M[i]=m}
    const rc={id:rid,date:Date.now(),l:{},rev:false};
    for(const i in M){const n=N[i],m=M[i];m.qty=String(+(num(m.qty)+n).toFixed(4));p('materials',m);p('moves',{id:uid(),mid:m.id,date:rc.date,delta:n,note:'Παραλαβή – παραγγελία № '+o2.no,rid});rc.l[i]=n}
-   o2.receipts.push(rc);recalcO(o2);o2.log.push({t:rc.date,e:'Παραλαβή υλικών'});p('orders',o2)});
+   o2.receipts.push(rc);o2.closed=!keep;recalcO(o2);o2.log.push({t:rc.date,e:'Παραλαβή υλικών'});p('orders',o2)});
   alert(r.err||(r.dup?'Αυτή η παραλαβή έχει ήδη καταχωριστεί.':'Το απόθεμα ενημερώθηκε.'))}finally{RBUSY=false}
  go('orderC',id)}
 async function revRcv(id,rid){if(RBUSY)return;if(!confirm('Να αναιρεθεί αυτή η παραλαβή;\nΤα υλικά της θα αφαιρεθούν από την αποθήκη.'))return;RBUSY=true;
@@ -368,7 +368,7 @@ async function revRcv(id,rid){if(RBUSY)return;if(!confirm('Να αναιρεθε
      if(!m)return stop({err:'Το υλικό «'+o.lines[i].d+'» δεν υπάρχει πια στην αποθήκη. Δεν έγινε καμία αλλαγή.'});
      if(num(m.qty)<rc.l[i]-1e-9)return stop({err:'Δεν αναιρείται: το απόθεμα του «'+m.d+'» είναι μικρότερο από την παραλαβή (έχει ήδη χρησιμοποιηθεί). Κάνε χειροκίνητη διόρθωση στην αποθήκη.'});M[i]=m}
    const t=Date.now();for(const i in M){const n=rc.l[i],m=M[i];m.qty=String(+(num(m.qty)-n).toFixed(4));p('materials',m);p('moves',{id:uid(),mid:m.id,date:t,delta:-n,note:'Αναίρεση παραλαβής – παραγγελία № '+o.no,rid})}
-   rc.rev=true;rc.revDate=t;recalcO(o);o.log.push({t,e:'Αναιρέθηκε παραλαβή'});p('orders',o)});
+   rc.rev=true;rc.revDate=t;o.closed=false;recalcO(o);o.log.push({t,e:'Αναιρέθηκε παραλαβή'});p('orders',o)});
   alert(r.err||'Η παραλαβή αναιρέθηκε και το απόθεμα διορθώθηκε.')}finally{RBUSY=false}
  go('orderC',id)}
 async function editOrd(id){const o=normO(await get('orders',id)),N=o.lines.map((l,i)=>num($('#oq'+i).value));

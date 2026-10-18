@@ -135,7 +135,7 @@ async function render(){
 const VIEWS={
 async home(){
  const [pr,qs,ms]=await Promise.all([all('projects'),all('quotes'),all('materials')]);
- const low=ms.filter(m=>num(m.min)>0&&num(m.qty)<=num(m.min));
+ const low=ms.filter(m=>num(m.min)>0&&num(m.qty)<num(m.min));
  const act=pr.filter(p=>['approved','inprogress'].includes(p.status)).length;
  const pend=qs.filter(q=>q.status=='pending').length;
  const prof=qs.filter(q=>q.status=='approved').reduce((t,q)=>t+calc(q).profit,0);
@@ -288,7 +288,7 @@ const PL={'τεμ':['τεμάχιο','τεμάχια'],'μ':['μέτρο','μέ�
 const pl=(u,q)=>(PL[u]||[u,u])[num(q)==1?0:1];
 const ST_O={ordered:'Παραγγέλθηκε',partial:'Μερική παραλαβή',received:'Παραλήφθηκε',cancelled:'Ακυρώθηκε'};
 const isOpen=o=>['ordered','partial'].includes(o.status);
-const isLow=m=>num(m.min)>0&&num(m.qty)<=num(m.min);
+const isLow=m=>num(m.min)>0&&num(m.qty)<num(m.min);
 async function pendMap(){const P={};(await all('orders')).filter(isOpen).forEach(o=>o.lines.forEach(l=>P[l.mid]=(P[l.mid]||0)+Math.max(0,l.q-l.r)));return P}
 const sugg=(m,p)=>Math.max(0,num(m.min)-num(m.qty)-(p||0));
 const fq=q=>String(+(+q).toFixed(3)).replace('.',',');
@@ -332,8 +332,8 @@ async orderC(id){const o=normO(await get('orders',id));OCUR=o;RRID=uid();const o
  EXPF=()=>o.lines.map(l=>({c:code(l),d:l.d,u:l.u,q:l.q}));const done=o.lines.filter(l=>l.r>=l.q).length;
  return `<h2>Παραγγελία № ${o.no}</h2><p>${dt(o.date)} · <b>${ST_O[o.status]}</b> · ${done}/${o.lines.length} υλικά πλήρη</p>
  ${o.lines.map((l,i)=>{const rem=Math.max(0,+(l.q-l.r).toFixed(4)),badge=l.r>=l.q?'✅ Παραλήφθηκε πλήρως':l.r>0?'⏳ Μερική παραλαβή – εκκρεμούν '+rem:'⏳ Δεν έχει παραληφθεί';
-  return `<div class="mr"><b>${esc(l.d)}</b>${code(l)?` <small>(${esc(code(l))})</small>`:''}<br><small>Παραγγέλθηκαν <b>${l.q}</b> ${esc(pl(l.u,l.q))} · Παρελήφθησαν <b>${l.r}</b> · Εκκρεμούν <b>${rem}</b><br>${badge}</small>${op?`<div class="g" style="grid-template-columns:1fr 1fr"><div><small>Ποσότητα παραγγελίας</small><input id="oq${i}" inputmode="decimal" value="${l.q}"></div><div><small>Παραλαβή τώρα</small><input id="or${i}" inputmode="decimal" value="0"></div></div>`:''}</div>`}).join('')}
- ${op?`<div class="btns"><button class="s" onclick="fillRem()">Συμπλήρωση με όσα εκκρεμούν</button></div><div class="btns"><button id="rbtn" onclick="recvOrd('${id}')">📦 Παραλαβή υλικών</button><button class="s" onclick="editOrd('${id}')">Αποθήκευση ποσοτήτων παραγγελίας</button><button class="d" onclick="cancelOrd('${id}')">Ακύρωση παραγγελίας</button></div><small>Η παραλαβή αυξάνει το απόθεμα μόνο με όσα γράψεις στο «Παραλαβή τώρα». Η επεξεργασία και η ακύρωση δεν αλλάζουν το απόθεμα.</small>`:''}
+  return `<div class="mr"><b>${esc(l.d)}</b>${code(l)?` <small>(${esc(code(l))})</small>`:''}<br><small>Παραγγέλθηκαν <b>${l.q}</b> ${esc(pl(l.u,l.q))} · Παρελήφθησαν <b>${l.r}</b> · Εκκρεμούν <b>${rem}</b><br>${badge}</small>${op?`<div class="g" style="grid-template-columns:1fr 1fr"><div><small>Ποσότητα παραγγελίας</small><input id="oq${i}" inputmode="decimal" value="${l.q}"></div><div><small>Παραλαβή τώρα</small><input id="or${i}" inputmode="decimal" value="${Math.max(0,+(l.q-l.r).toFixed(4))}"></div></div>`:''}</div>`}).join('')}
+ ${op?`<div class="btns"><button class="s" onclick="fillRem()">Συμπλήρωση με όσα εκκρεμούν</button></div><div class="btns"><button id="rbtn" onclick="recvOrd('${id}')">📦 Τα παρέλαβα – μπαίνουν στην αποθήκη</button><button class="s" onclick="editOrd('${id}')">Αποθήκευση ποσοτήτων παραγγελίας</button><button class="d" onclick="cancelOrd('${id}')">Ακύρωση παραγγελίας</button></div><small>Η παραλαβή αυξάνει το απόθεμα μόνο με όσα γράψεις στο «Παραλαβή τώρα». Η επεξεργασία και η ακύρωση δεν αλλάζουν το απόθεμα.</small>`:''}
  <div id="cpbox"></div>${expBar()}
  <h3>Ιστορικό παραλαβών</h3>${o.receipts.slice().reverse().map(r=>`<div class="mr"><b>Παραλαβή ${dt(r.date)}</b>${r.rev?` <span style="color:#c53030">(αναιρέθηκε ${dt(r.revDate)})</span>`:''}<br><small>${Object.entries(r.l).filter(([i,q])=>q>0).map(([i,q])=>esc(o.lines[i].d)+': +'+q).join('<br>')}</small>${r.rev?'':`<br><button class="s sm" onclick="revRcv('${o.id}','${r.id}')">↩️ Αναίρεση παραλαβής</button>`}</div>`).join('')||'<small>Καμία παραλαβή ακόμα.</small>'}
  <h3>Γεγονότα</h3>${o.log.slice().reverse().map(g=>`<small style="display:block">${dt(g.t)} · ${esc(g.e)}</small>`).join('')}

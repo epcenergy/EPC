@@ -184,7 +184,7 @@ async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m])
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
-async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 5.6</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['theme','Εμφάνιση','sel',[['auto','Αυτόματα (όπως το κινητό)'],['light','Φωτεινό'],['dark','Σκούρο']]],['backupDays','Υπενθύμιση για αντίγραφο ασφαλείας','sel',[['1','Κάθε μέρα'],['3','Κάθε 3 μέρες'],['7','Κάθε εβδομάδα'],['14','Κάθε 2 εβδομάδες'],['30','Κάθε μήνα']]]],SET)}</div>
+async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 5.7</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['theme','Εμφάνιση','sel',[['auto','Αυτόματα (όπως το κινητό)'],['light','Φωτεινό'],['dark','Σκούρο']]],['backupDays','Υπενθύμιση για αντίγραφο ασφαλείας','sel',[['1','Κάθε μέρα'],['3','Κάθε 3 μέρες'],['7','Κάθε εβδομάδα'],['14','Κάθε 2 εβδομάδες'],['30','Κάθε μήνα']]]],SET)}</div>
  <div class="btns"><button onclick="saveSettings()">Αποθήκευση ρυθμίσεων</button></div>
  <h3>Αντίγραφα ασφαλείας</h3><div class="card" style="font-size:14px">${SET.lastBackup?'Τελευταίο αντίγραφο: '+dt(SET.lastBackup):'Δεν έχει γίνει αντίγραφο ακόμα.'}<br>Τα δεδομένα αποθηκεύονται μόνο σε αυτή τη συσκευή και αυτόν τον browser. Αν χαθούν ή διαγραφούν χωρίς αντίγραφο, δεν ανακτώνται.</div>
  <div class="btns"><button onclick="exportDB()">⬇️ Δημιουργία αντιγράφου</button><button class="s" onclick="$('#imp').click()">⬆️ Επαναφορά</button></div><input id="imp" type="file" accept=".json" hidden onchange="importDB(this.files[0])">
@@ -461,7 +461,7 @@ const mrow=m=>`<div class="row ${isLow(m)?'low':''}" data-id="${m.id}" onclick="
 let STQ='',STO=new Set();
 const NOCAT='Χωρίς κατηγορία';
 function stoSave(){}
-function togG(el){const k=el.dataset.g;if(el.open)STO.add(k);else{STO.delete(k);if(!k.includes('›')){[...STO].forEach(x=>{if(x.startsWith(k+'›'))STO.delete(x)});el.querySelectorAll('details[open]').forEach(d=>{d.open=false})}}}
+function togG(el){const k=el.dataset.g;if(el.open)STO.add(k);else{STO.delete(k);if(!k.includes('›')){const had=el.querySelector('details[open]');[...STO].forEach(x=>{if(x.startsWith(k+'›'))STO.delete(x)});if(had){const y=scrollY;render().then(()=>scrollTo(0,y))}}}}
 function fltStock(v){STQ=v||'';const G=$('#grp'),L=$('#list');if(!G||!L)return;const qs=toks(v);
  if(!qs.length){G.hidden=false;L.hidden=true;L.innerHTML='';const n=$('#nores');if(n)n.hidden=true;return}
  const sc=SIX.map(ix=>[ix,searchScore(qs,ix)]).filter(x=>x[1]).sort((a,b)=>b[1]-a[1]);

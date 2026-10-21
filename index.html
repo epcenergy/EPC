@@ -163,7 +163,7 @@ async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m])
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
-async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 5.1</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['backupDays','Υπενθύμιση για αντίγραφο ασφαλείας','sel',[['1','Κάθε μέρα'],['3','Κάθε 3 μέρες'],['7','Κάθε εβδομάδα'],['14','Κάθε 2 εβδομάδες'],['30','Κάθε μήνα']]]],SET)}</div>
+async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 5.2</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['backupDays','Υπενθύμιση για αντίγραφο ασφαλείας','sel',[['1','Κάθε μέρα'],['3','Κάθε 3 μέρες'],['7','Κάθε εβδομάδα'],['14','Κάθε 2 εβδομάδες'],['30','Κάθε μήνα']]]],SET)}</div>
  <div class="btns"><button onclick="saveSettings()">Αποθήκευση ρυθμίσεων</button></div>
  <h3>Αντίγραφα ασφαλείας</h3><div class="card" style="font-size:14px">${SET.lastBackup?'Τελευταίο αντίγραφο: '+dt(SET.lastBackup):'Δεν έχει γίνει αντίγραφο ακόμα.'}<br>Τα δεδομένα αποθηκεύονται μόνο σε αυτή τη συσκευή και αυτόν τον browser. Αν χαθούν ή διαγραφούν χωρίς αντίγραφο, δεν ανακτώνται.</div>
  <div class="btns"><button onclick="exportDB()">⬇️ Δημιουργία αντιγράφου</button><button class="s" onclick="$('#imp').click()">⬆️ Επαναφορά</button></div><input id="imp" type="file" accept=".json" hidden onchange="importDB(this.files[0])">
@@ -360,7 +360,7 @@ async function recvOrd(id){if(RBUSY||!OCUR||OCUR.id!=id)return;const o=OCUR,keep
    const o2=await g('orders',id);if(!o2)return stop({err:'Η παραγγελία δεν βρέθηκε.'});normO(o2);
    if(o2.status=='cancelled')return stop({err:'Η παραγγελία είναι ακυρωμένη.'});
    if(o2.receipts.some(x=>x.id==rid))return stop({dup:true});
-   const M={};for(let i=0;i<N.length;i++)if(N[i]>0){const m=await g('materials',o2.lines[i].mid);if(!m)return stop({err:'Το υλικό «'+o2.lines[i].d+'» δεν υπάρχει πια στην αποθήκη. Δεν έγινε καμία αλλαγή.'});M[i]=m}
+   const M={},MM={};for(let i=0;i<N.length;i++)if(N[i]>0){const mid=o2.lines[i].mid,m=MM[mid]||(MM[mid]=await g('materials',mid));if(!m)return stop({err:'Το υλικό «'+o2.lines[i].d+'» δεν υπάρχει πια στην αποθήκη. Δεν έγινε καμία αλλαγή.'});M[i]=m}
    const rc={id:rid,date:Date.now(),l:{},rev:false};
    for(const i in M){const n=N[i],m=M[i];m.qty=String(+(num(m.qty)+n).toFixed(4));p('materials',m);p('moves',{id:uid(),mid:m.id,date:rc.date,delta:n,note:'Παραλαβή – παραγγελία № '+o2.no,rid});rc.l[i]=n}
    o2.receipts.push(rc);o2.closed=!keep;recalcO(o2);o2.log.push({t:rc.date,e:'Παραλαβή υλικών'});p('orders',o2)});
@@ -370,9 +370,10 @@ async function revRcv(id,rid){if(RBUSY)return;if(!confirm('Να αναιρεθε
  try{const r=await idbTx(['orders','materials','moves'],async({g,p,stop})=>{
    const o=await g('orders',id);if(!o)return stop({err:'Η παραγγελία δεν βρέθηκε.'});normO(o);const rc=o.receipts.find(x=>x.id==rid);
    if(!rc||rc.rev)return stop({err:'Η παραλαβή έχει ήδη αναιρεθεί.'});
-   const M={};for(const i in rc.l)if(rc.l[i]>0){const m=await g('materials',o.lines[i].mid);
+   const M={},MM={},NEED={};for(const i in rc.l)if(rc.l[i]>0){const mid=o.lines[i].mid,m=MM[mid]||(MM[mid]=await g('materials',mid));
      if(!m)return stop({err:'Το υλικό «'+o.lines[i].d+'» δεν υπάρχει πια στην αποθήκη. Δεν έγινε καμία αλλαγή.'});
-     if(num(m.qty)<rc.l[i]-1e-9)return stop({err:'Δεν αναιρείται: το απόθεμα του «'+m.d+'» είναι μικρότερο από την παραλαβή (έχει ήδη χρησιμοποιηθεί). Κάνε χειροκίνητη διόρθωση στην αποθήκη.'});M[i]=m}
+     NEED[mid]=(NEED[mid]||0)+rc.l[i];
+     if(num(m.qty)<NEED[mid]-1e-9)return stop({err:'Δεν αναιρείται: το απόθεμα του «'+m.d+'» είναι μικρότερο από την παραλαβή (έχει ήδη χρησιμοποιηθεί). Κάνε χειροκίνητη διόρθωση στην αποθήκη.'});M[i]=m}
    const t=Date.now();for(const i in M){const n=rc.l[i],m=M[i];m.qty=String(+(num(m.qty)-n).toFixed(4));p('materials',m);p('moves',{id:uid(),mid:m.id,date:t,delta:-n,note:'Αναίρεση παραλαβής – παραγγελία № '+o.no,rid})}
    rc.rev=true;rc.revDate=t;o.closed=false;recalcO(o);o.log.push({t,e:'Αναιρέθηκε παραλαβή'});p('orders',o)});
   alert(r.err||'Η παραλαβή αναιρέθηκε και το απόθεμα διορθώθηκε.')}finally{RBUSY=false}

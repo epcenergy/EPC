@@ -43,6 +43,25 @@ button.s{background:#fff;color:var(--navy);border:1px solid var(--navy)}button.d
 .sw{position:relative;overflow:hidden;border-radius:10px;margin-bottom:8px}.sw .row{margin:0}
 .swbg{position:absolute;left:0;top:0;bottom:0;width:90px;background:#c53030;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px}
 .swfg{position:relative;touch-action:pan-y;transition:transform .2s;user-select:none;-webkit-user-select:none}
+/* ---- Σκούρο θέμα ---- */
+html[data-theme=dark]{color-scheme:dark;--ink:#e6edf3;--bg:#0f151b;--card:#1b2630;--line:#33414e;--red:#d04545;--ok:#2e8b4c}
+html[data-theme=dark] h2,html[data-theme=dark] h3,html[data-theme=dark] .grid .card b,html[data-theme=dark] #nav button.on{color:#cfe3f5}
+html[data-theme=dark] input,html[data-theme=dark] select,html[data-theme=dark] textarea{background:#16202a;color:var(--ink)}
+html[data-theme=dark] button{background:#3b5a78;color:#fff}
+html[data-theme=dark] button.s{background:transparent;color:#cfe3f5;border-color:#6b8fb0}
+html[data-theme=dark] button.d{background:var(--red)}
+html[data-theme=dark] label{color:#9fb3c6}
+html[data-theme=dark] .row small,html[data-theme=dark] .mr small,html[data-theme=dark] small{color:#8da2b5}
+html[data-theme=dark] #nav,html[data-theme=dark] #tb{background:#16202a}
+html[data-theme=dark] #nav button{background:none;color:#8da2b5}
+html[data-theme=dark] .mr{background:#1b2630}
+html[data-theme=dark] .warn,html[data-theme=dark] .warnb{background:#3a3217;border-color:#8a6d1a;color:#f3e3a6}
+html[data-theme=dark] #tot,html[data-theme=dark] .okb,html[data-theme=dark] .crow.ok{background:#16331f;border-color:#2e8b4c;color:var(--ink)}
+html[data-theme=dark] .redb{background:#3a1c1c;color:#f5c2c2}
+html[data-theme=dark] .grp>summary{background:#1b2630;color:var(--ink)}
+html[data-theme=dark] .grp.sub>summary{background:#16202a}
+html[data-theme=dark] .lowb{color:#ff8a8a}
+html[data-theme=dark] a{color:#7fb8ea}
 /* ---- Πρότυπο προσφοράς (από το υπάρχον HTML) ---- */
 @page{size:A4 portrait;margin:8mm}
 .container{width:210mm;margin:0 auto;background:#fff;padding:8mm;font-family:Arial,sans-serif;color:#000;box-shadow:0 2px 10px #0001}
@@ -96,9 +115,11 @@ let _db;const db=()=>_db||(_db=new Promise((ok,no)=>{const r=indexedDB.open('epc
 const run=async(s,m,...a)=>{const d=await db();return new Promise((ok,no)=>{const r=d.transaction(s,'readwrite').objectStore(s)[m](...a);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})};
 const put=(s,o)=>run(s,'put',o),del=(s,i)=>run(s,'delete',i),all=s=>run(s,'getAll'),get=(s,i)=>run(s,'get',i);
 /* ---------- Ρυθμίσεις ---------- */
-const DEF={id:'set',phone:'6979723128',email:'chr.panagiotis33@gmail.com',web:'www.energypc.gr',nextNo:2163,validDays:30,vat:24,markup:25,lastBackup:null,
+const DEF={id:'set',theme:'auto',phone:'6979723128',email:'chr.panagiotis33@gmail.com',web:'www.energypc.gr',nextNo:2163,validDays:30,vat:24,markup:25,lastBackup:null,
 clar:'Χωνευτή εγκατάσταση: Όλες οι καλωδιώσεις θα βρίσκονται εντός σωλήνων, χωνευτές και όχι εξωτερικές\nΣτην τιμή συμπεριλαμβάνονται: Τα υλικά και η εργασία για την εγκατάσταση\nΔεν συμπεριλαμβάνεται: Η αγορά των πριζών, των διακοπτών και των ηλεκτρικών συσκευών\nΔιευκρίνιση Εργασιών: Η παρούσα προσφορά αφορά αποκλειστικά την ηλεκτρολογική εγκατάσταση. Οποιαδήποτε οικοδομική εργασία αποκατάστασης επιφανειών (επιχρίσματα/σοβάδες) δεν εμπίπτει στο πεδίο αρμοδιότητάς μας και δεν περιλαμβάνεται στην τελική κοστολόγηση'};
 let SET=DEF;
+function applyTheme(){let t=SET.theme||'auto';if(t=='auto')t=matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');if(m)m.content=t=='dark'?'#0f151b':'#2c3e50'}
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>applyTheme())}catch{}
 const saveSet=()=>put('kv',SET);
 /* ---------- Υπολογισμοί (ακέραια λεπτά, στρογγυλοποίηση ανά γραμμή στο λεπτό) ---------- */
 function calc(q){
@@ -163,7 +184,7 @@ async quoteEd(){STK=Object.fromEntries((await all('materials')).map(m=>[m.id,m])
 async quoteV(id){const q=await get('quotes',id);document.body.classList.add('pv');
  $('#sheet').innerHTML=sheet(q);fit();
  $('#tb').innerHTML=`<button class="s" onclick="go('quotes')">‹ Πίσω</button><button onclick="print()">🖨 Εκτύπωση / PDF</button><button class="s" onclick="toggleMode('${id}')">Μορφή: ${({tpl:'όπως πρότυπο',full:'αναλυτική',sum:'συνοπτική'})[q.mode]||'όπως πρότυπο'} ↻</button><button class="s" onclick="editQ('${id}')">✏️ Επεξεργασία</button><select onchange="setQS('${id}',this.value)" style="flex:1 1 100%;padding:10px;font-size:15px">${opts(ST_Q).map(([k,v])=>`<option value="${k}"${q.status==k?' selected':''}>${v}</option>`).join('')}</select><button class="s" onclick="useStock('${id}')">📦 Αφαίρεση υλικών</button><button class="d" onclick="delQ('${id}')">🗑 Διαγραφή</button>`;return ''},
-async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 5.4</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['backupDays','Υπενθύμιση για αντίγραφο ασφαλείας','sel',[['1','Κάθε μέρα'],['3','Κάθε 3 μέρες'],['7','Κάθε εβδομάδα'],['14','Κάθε 2 εβδομάδες'],['30','Κάθε μήνα']]]],SET)}</div>
+async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρμογής: 5.5</small> <button class="s sm" onclick="refreshApp()">🔄 Ενημέρωση εφαρμογής</button><div id="f">${F([['theme','Εμφάνιση','sel',[['auto','Αυτόματα (όπως το κινητό)'],['light','Φωτεινό'],['dark','Σκούρο']]],['backupDays','Υπενθύμιση για αντίγραφο ασφαλείας','sel',[['1','Κάθε μέρα'],['3','Κάθε 3 μέρες'],['7','Κάθε εβδομάδα'],['14','Κάθε 2 εβδομάδες'],['30','Κάθε μήνα']]]],SET)}</div>
  <div class="btns"><button onclick="saveSettings()">Αποθήκευση ρυθμίσεων</button></div>
  <h3>Αντίγραφα ασφαλείας</h3><div class="card" style="font-size:14px">${SET.lastBackup?'Τελευταίο αντίγραφο: '+dt(SET.lastBackup):'Δεν έχει γίνει αντίγραφο ακόμα.'}<br>Τα δεδομένα αποθηκεύονται μόνο σε αυτή τη συσκευή και αυτόν τον browser. Αν χαθούν ή διαγραφούν χωρίς αντίγραφο, δεν ανακτώνται.</div>
  <div class="btns"><button onclick="exportDB()">⬇️ Δημιουργία αντιγράφου</button><button class="s" onclick="$('#imp').click()">⬆️ Επαναφορά</button></div><input id="imp" type="file" accept=".json" hidden onchange="importDB(this.files[0])">
@@ -171,7 +192,7 @@ async settings(){return `<h2>Ρυθμίσεις</h2><small>Έκδοση εφαρ
 function costBox(qs){const a=qs.filter(q=>q.status=='approved').map(calc);if(!a.length)return '';const s=k=>a.reduce((t,x)=>t+x[k],0);
  return `<h3>Οικονομικό αποτέλεσμα (εγκεκριμένες προσφορές)</h3><div class="card">Κόστος: ${eur(s('matCost')+s('labCost')+s('extCost'))}<br>Καθαρή αξία: ${eur(s('net'))}<br><b>Εκτιμώμενο κέρδος: ${eur(s('profit'))}</b></div>`}
 /* ---------- Ρυθμίσεις / Αποθήκη / Backup ---------- */
-async function saveSettings(){SET={...SET,...C()};SET.backupDays=num(SET.backupDays)||7;await saveSet();alert('Αποθηκεύτηκε.');render()}
+async function saveSettings(){SET={...SET,...C()};SET.backupDays=num(SET.backupDays)||7;await saveSet();applyTheme();alert('Αποθηκεύτηκε.');render()}
 async function saveMat(id){const o=C(),old=id&&await get('materials',id)||{};if(!o.d)return alert('Συμπλήρωσε περιγραφή.');
  const m={...old,id:id||uid(),...o,hist:old.hist||[]};
  if(!old.id||num(old.price)!=num(m.price)){m.priceDate=Date.now();m.hist.push({t:m.priceDate,p:num(m.price)})}
@@ -183,7 +204,7 @@ async function exportDB(){const d={app:'epc-app',v:1,date:Date.now()};for(const 
 async function importDB(f){if(!f)return;let d;try{d=JSON.parse(await f.text());if(d.app!='epc-app')throw 0}catch{return alert('Το αρχείο δεν είναι έγκυρο αντίγραφο.')}
  if(!confirm('Η επαναφορά ΑΝΤΙΚΑΘΙΣΤΑ όλα τα τρέχοντα δεδομένα. Συνέχεια;'))return;
  for(const s of STORES){for(const o of await all(s))await del(s,o.id);if(!DROP.includes(s))for(const o of d[s]||[])await put(s,o)}
- SET={...DEF,...((d.kv||[]).find(k=>k.id=='set')||{})};await saveSet();alert('Η επαναφορά ολοκληρώθηκε.');go('home')}
+ SET={...DEF,...((d.kv||[]).find(k=>k.id=='set')||{})};await saveSet();applyTheme();alert('Η επαναφορά ολοκληρώθηκε.');go('home')}
 /* ---------- Επεξεργαστής προσφοράς ---------- */
 let QO=new Set(['info']);const BLANK={mats:{d:'',q:'1',u:'τεμ',cost:'0',mid:null},labor:{d:'',q:'1',cost:'0',rate:'0'},extra:{d:'',amt:'0'},sections:{t:'',items:''}};
 async function newQ(clientId='',projectId=''){const p=projectId&&await get('projects',projectId)||{};
@@ -708,7 +729,7 @@ async function subDel(i,j){const c=await loadCats(),cat=c[i],S=await loadSubs(),
 async function subMove(i,j,d){const c=await loadCats(),cat=c[i],S=await loadSubs(),l=S[cat]||[],k=j+d;if(k<0||k>=l.length)return;[l[j],l[k]]=[l[k],l[j]];await saveSubs(S);go('cats')}
 /* ---------- Εκκίνηση ---------- */
 (async()=>{
- await purge();SET={...DEF,...((await get('kv','set'))||{})};
+ await purge();SET={...DEF,...((await get('kv','set'))||{})};applyTheme();
  window._cl={};const orig=VIEWS.quoteEd;VIEWS.quoteEd=async()=>{window._cl=Object.fromEntries((await all('clients')).sort(by('name')).map(c=>[c.id,c]));return orig()};
  navigator.storage?.persist?.();
  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
